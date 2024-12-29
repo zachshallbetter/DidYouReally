@@ -26,24 +26,29 @@ A scalable system for tracking resume interactions using **Supabase** and **Next
 ## Setup
 
 1. **Clone the repository**
+
    ```bash
    git clone https://github.com/zachshallbetter/DidYouReally.git
    cd DidYouReally
    ```
 
 2. **Install dependencies**
+
    ```bash
    npm install
    ```
 
 3. **Configure environment variables**
+
    ```bash
    cp .env.example .env.local
    ```
+
    Fill in your Supabase credentials in `.env.local`
 
 4. **Set up Supabase database**
    Run the following SQL in your Supabase SQL editor:
+
    ```sql
    -- Table to store resume metadata
    create table resumes (
@@ -65,6 +70,7 @@ A scalable system for tracking resume interactions using **Supabase** and **Next
    ```
 
 5. **Run the development server**
+
    ```bash
    npm run dev
    ```
@@ -72,6 +78,7 @@ A scalable system for tracking resume interactions using **Supabase** and **Next
 ## Usage
 
 1. **Upload Resume Details**
+
    ```bash
    curl -X POST http://localhost:3000/api/upload \
      -H "Content-Type: application/json" \
@@ -80,6 +87,7 @@ A scalable system for tracking resume interactions using **Supabase** and **Next
 
 2. **Track Resume Views**
    Add a tracking pixel to your resume:
+
    ```html
    <img src="http://localhost:3000/api/track?unique_id=unique-identifier" style="display: none" alt="" />
    ```
@@ -90,6 +98,7 @@ A scalable system for tracking resume interactions using **Supabase** and **Next
 ## Deployment
 
 1. **Deploy to Vercel**
+
    ```bash
    vercel
    ```
@@ -108,7 +117,3 @@ A scalable system for tracking resume interactions using **Supabase** and **Next
 ## License
 
 This project is licensed under the ISC License.
-
-## Support
-
-For support, email zach@zachshallbetter.com or open an issue in the repository.
