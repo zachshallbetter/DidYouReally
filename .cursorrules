@@ -1,0 +1,145 @@
+# DidYouReally Project Rules
+# These rules guide development to maintain project integrity and philosophy
+
+## Core Principles
+enforce_rules:
+  - "Use TypeScript for all code"
+  - "Use Next.js for all pages"
+  - "Use Tailwind CSS for all styling"
+  - "Use Supabase for all database operations"
+  - "Use Vercel for all hosting and deployment"
+  - "Use Vercel AI for all AI operations"
+  - "Use Vercel Edge Functions for all edge operations"
+  - "Use the phrase "I will", instead of "I'll help"
+  - "Prioritize human readability over machine optimization"
+  - "Maintain data privacy and security at all times"
+  - "Focus on meaningful metrics over arbitrary numbers"
+  - "Ensure accessibility and inclusivity in all features"
+  - "Preserve authenticity in resume representation"
+
+## Code Structure
+path_rules:
+  src/components/:
+    - "Use functional components with TypeScript"
+    - "Implement proper error boundaries"
+    - "Maintain mobile-first responsive design"
+    - "Follow atomic design principles"
+  
+  src/lib/:
+    - "Centralize shared utilities and hooks"
+    - "Implement proper error handling"
+    - "Add comprehensive type definitions"
+  
+  src/app/api/:
+    - "Include rate limiting on all endpoints"
+    - "Implement proper request validation"
+    - "Add error logging for all failures"
+
+## Database Rules
+db_rules:
+  tables:
+    resumes:
+      - "Enforce version control for all updates"
+      - "Maintain referential integrity"
+      - "Implement soft deletes only"
+    
+    tracking_logs:
+      - "Anonymize sensitive data"
+      - "Implement data retention policies"
+      - "Add proper indexing for queries"
+
+## Security Requirements
+security_rules:
+  - "Encrypt all sensitive data at rest"
+  - "Use environment variables for secrets"
+  - "Implement rate limiting on all API routes"
+  - "Validate all user inputs"
+  - "Use prepared statements for SQL queries"
+
+## Testing Requirements
+test_rules:
+  - "Write unit tests for all utilities"
+  - "Add integration tests for API routes"
+  - "Include accessibility tests"
+  - "Test mobile responsiveness"
+  - "Verify error handling paths"
+
+## Performance Guidelines
+performance_rules:
+  - "Implement proper caching strategies"
+  - "Optimize database queries"
+  - "Lazy load non-critical components"
+  - "Minimize bundle size"
+  - "Use proper image optimization"
+
+## Privacy Requirements
+privacy_rules:
+  - "Follow GDPR compliance guidelines"
+  - "Implement data anonymization"
+  - "Add user consent management"
+  - "Provide data export capabilities"
+  - "Include privacy policy documentation"
+
+## Documentation Requirements
+documentation_rules:
+  - "Document all API endpoints"
+  - "Add JSDoc comments for functions"
+  - "Include setup instructions"
+  - "Maintain changelog"
+  - "Document database schema"
+
+## Commit Guidelines
+commit_rules:
+  - "Use conventional commit messages"
+  - "Include issue references"
+  - "Keep commits atomic"
+  - "Add proper descriptions"
+  - "Reference related documentation"
+
+## Resume Processing Rules
+resume_rules:
+  - "Preserve original formatting where possible"
+  - "Maintain document metadata"
+  - "Implement proper version control"
+  - "Add change tracking"
+  - "Support multiple formats"
+
+## Analytics Requirements
+analytics_rules:
+  - "Focus on meaningful metrics"
+  - "Implement proper data aggregation"
+  - "Add visualization capabilities"
+  - "Include export functionality"
+  - "Maintain historical data"
+
+## Error Handling
+error_rules:
+  - "Log all errors with context"
+  - "Implement proper fallbacks"
+  - "Add user-friendly error messages"
+  - "Include error recovery paths"
+  - "Monitor error frequencies"
+
+## Accessibility Guidelines
+accessibility_rules:
+  - "Follow WCAG 2.1 guidelines"
+  - "Support screen readers"
+  - "Maintain proper contrast ratios"
+  - "Add keyboard navigation"
+  - "Include aria labels"
+
+## State Management
+state_rules:
+  - "Use appropriate state management tools"
+  - "Implement proper loading states"
+  - "Handle error states gracefully"
+  - "Add optimistic updates"
+  - "Maintain consistent state"
+
+## API Design
+api_rules:
+  - "Follow RESTful principles"
+  - "Version all endpoints"
+  - "Add proper validation"
+  - "Include rate limiting"
+  - "Document all responses" 
