@@ -12,64 +12,75 @@ type ResumeState = 'active' | 'recently_viewed' | 'expired' | 'multi_device' | '
 const TEST_SCENARIOS = [
   {
     name: 'Frequently Accessed',
-    viewCount: 10,
+    viewCount: 15,
     timeSpan: 7,
     deviceTypes: ['desktop' as DeviceType],
     isCloud: false,
     locations: ['San Francisco, CA', 'San Jose, CA'],
-    sessionPattern: 'single',
-    eventChain: true
+    sessionPattern: 'multiple', // Multiple sessions per day
+    eventChain: true,
+    eventFrequency: 'high', // Multiple events per day
+    applicationStatus: undefined
   },
   {
     name: 'Multi-Device Access',
-    viewCount: 5,
-    timeSpan: 3,
+    viewCount: 8,
+    timeSpan: 5,
     deviceTypes: ['desktop' as DeviceType, 'mobile' as DeviceType, 'tablet' as DeviceType],
     isCloud: false,
     locations: ['New York, NY', 'Boston, MA', 'Chicago, IL'],
     sessionPattern: 'multiple',
-    eventChain: false
+    eventChain: true,
+    eventFrequency: 'medium', // 1-2 events per day
+    applicationStatus: undefined
   },
   {
     name: 'Cloud Service Access',
-    viewCount: 8,
+    viewCount: 10,
     timeSpan: 5,
     deviceTypes: ['unknown' as DeviceType],
     isCloud: true,
     locations: ['AWS Cloud', 'Google Cloud', 'Azure Cloud'],
     sessionPattern: 'continuous',
-    eventChain: false
+    eventChain: false,
+    eventFrequency: 'high',
+    applicationStatus: undefined
   },
   {
     name: 'Recently Viewed',
-    viewCount: 2,
-    timeSpan: 1,
+    viewCount: 3,
+    timeSpan: 2,
     deviceTypes: ['desktop' as DeviceType],
     isCloud: false,
     locations: ['Seattle, WA'],
     sessionPattern: 'single',
-    eventChain: true
+    eventChain: true,
+    eventFrequency: 'low', // Few events spread out
+    applicationStatus: undefined
   },
   {
     name: 'Expired Resume',
-    viewCount: 3,
+    viewCount: 5,
     timeSpan: 45,
     deviceTypes: ['desktop' as DeviceType],
     isCloud: false,
     locations: ['Austin, TX'],
     sessionPattern: 'single',
     eventChain: false,
-    forceExpired: true
+    eventFrequency: 'none', // No recent events
+    forceExpired: true,
+    applicationStatus: undefined
   },
   {
     name: 'Under Consideration',
-    viewCount: 15,
+    viewCount: 12,
     timeSpan: 14,
     deviceTypes: ['desktop' as DeviceType, 'mobile' as DeviceType],
     isCloud: false,
     locations: ['Los Angeles, CA', 'San Diego, CA'],
     sessionPattern: 'multiple',
     eventChain: true,
+    eventFrequency: 'medium',
     applicationStatus: 'interviewing'
   }
 ];
@@ -105,9 +116,102 @@ function generateGeoLocation(location: string): any {
   return geoData;
 }
 
+// Helper function to generate events based on frequency
+function generateEventsForDay(
+  date: Date,
+  frequency: string,
+  sessionData: { deviceType: DeviceType; fingerprint: string; userAgent: string },
+  isCloud: boolean,
+  location: string
+): Array<{ event: any; log: any }> {
+  const events: Array<{ event: any; log: any }> = [];
+  const eventsPerDay = {
+    high: { min: 3, max: 5 },
+    medium: { min: 1, max: 2 },
+    low: { min: 0, max: 1 },
+    none: { min: 0, max: 0 }
+  }[frequency] || { min: 0, max: 0 };
+
+  const numEvents = faker.number.int({ min: eventsPerDay.min, max: eventsPerDay.max });
+
+  for (let i = 0; i < numEvents; i++) {
+    const eventTime = new Date(date);
+    eventTime.setHours(faker.number.int({ min: 9, max: 17 })); // Business hours
+    eventTime.setMinutes(faker.number.int({ min: 0, max: 59 }));
+
+    const duration = faker.number.int({ min: 30, max: 300 });
+    const geoData = generateGeoLocation(location);
+
+    events.push({
+      event: {
+        type: 'view',
+        createdAt: eventTime,
+        metadata: {
+          source: faker.helpers.arrayElement(['email', 'linkedin', 'direct', 'referral']),
+          isCloudService: isCloud,
+          deviceType: sessionData.deviceType,
+          sessionId: sessionData.fingerprint
+        }
+      },
+      log: {
+        deviceType: sessionData.deviceType,
+        isCloudService: isCloud,
+        location,
+        ipAddress: faker.internet.ip(),
+        userAgent: sessionData.userAgent,
+        referrer: faker.internet.url(),
+        duration,
+        deviceFingerprint: sessionData.fingerprint,
+        sessionId: sessionData.fingerprint,
+        geoLocation: geoData,
+        createdAt: eventTime
+      }
+    });
+
+    // Add follow-up events
+    if (Math.random() < 0.7) {
+      const followUpEvents: Array<'send' | 'open' | 'click' | 'download'> = ['send', 'open', 'click', 'download'];
+      let lastTime = eventTime;
+
+      for (const type of followUpEvents) {
+        if (Math.random() < 0.8) {
+          lastTime = new Date(lastTime.getTime() + faker.number.int({ min: 5, max: 30 }) * 60000);
+          events.push({
+            event: {
+              type,
+              createdAt: lastTime,
+              metadata: {
+                source: 'email',
+                isCloudService: isCloud,
+                deviceType: sessionData.deviceType,
+                sessionId: sessionData.fingerprint
+              }
+            },
+            log: {
+              deviceType: sessionData.deviceType,
+              isCloudService: isCloud,
+              location,
+              ipAddress: faker.internet.ip(),
+              userAgent: sessionData.userAgent,
+              referrer: faker.internet.url(),
+              duration: faker.number.int({ min: 10, max: 60 }),
+              deviceFingerprint: sessionData.fingerprint,
+              sessionId: sessionData.fingerprint,
+              geoLocation: geoData,
+              createdAt: lastTime
+            }
+          });
+        }
+      }
+    }
+  }
+
+  return events;
+}
+
 // Helper function to generate test scenario data with proper relations
 function generateTestScenarioData(scenario: typeof TEST_SCENARIOS[0], createdAt: Date) {
-  const events: Array<{ type: EventType; createdAt: Date; metadata: any }> = [];
+  const events: Array<{ type: string; createdAt: Date; metadata: any }> = [];
   const logs: Array<any> = [];
   const today = new Date();
   
@@ -123,12 +227,12 @@ function generateTestScenarioData(scenario: typeof TEST_SCENARIOS[0], createdAt:
     });
   });
 
-  // Generate events based on scenario
-  for (let i = 0; i < scenario.viewCount; i++) {
-    let eventDate = scenario.forceExpired 
+  // Generate events for each day in the timespan
+  for (let day = 0; day < scenario.timeSpan; day++) {
+    const eventDate = scenario.forceExpired 
       ? subDays(today, scenario.timeSpan + faker.number.int({ min: 5, max: 15 }))
-      : subDays(today, faker.number.int({ min: 0, max: scenario.timeSpan }));
-    
+      : subDays(today, day);
+
     // Select session based on pattern
     const sessionEntries = Array.from(sessions.entries());
     const [sessionId, sessionData] = sessionEntries[
@@ -136,55 +240,19 @@ function generateTestScenarioData(scenario: typeof TEST_SCENARIOS[0], createdAt:
       faker.number.int({ min: 0, max: sessionEntries.length - 1 })
     ];
 
-    // Add view event
-    events.push({
-      type: 'view',
-      createdAt: eventDate,
-      metadata: {
-        source: faker.helpers.arrayElement(['email', 'linkedin', 'direct', 'referral']),
-        isCloudService: scenario.isCloud,
-        deviceType: sessionData.deviceType,
-        sessionId
-      }
-    });
-
-    // Add corresponding log
     const location = faker.helpers.arrayElement(scenario.locations);
-    logs.push({
-      deviceType: sessionData.deviceType,
-      isCloudService: scenario.isCloud,
-      location,
-      ipAddress: faker.internet.ip(),
-      userAgent: sessionData.userAgent,
-      referrer: faker.internet.url(),
-      duration: faker.number.int({ min: 30, max: 300 }),
-      deviceFingerprint: sessionData.fingerprint,
-      sessionId,
-      geoLocation: generateGeoLocation(location),
-      createdAt: eventDate
-    });
+    const dailyEvents = generateEventsForDay(
+      eventDate,
+      scenario.eventFrequency,
+      sessionData,
+      scenario.isCloud,
+      location
+    );
 
-    // Add follow-up events for active scenarios with event chains
-    if (!scenario.forceExpired && scenario.eventChain && Math.random() < 0.6) {
-      let lastEventTime = eventDate;
-      const followUpEvents: EventType[] = ['send', 'open', 'click', 'download'];
-      
-      for (const eventType of followUpEvents) {
-        if (Math.random() < 0.7) {
-          lastEventTime = addMinutes(lastEventTime, faker.number.int({ min: 5, max: 60 }));
-          events.push({
-            type: eventType,
-            createdAt: lastEventTime,
-            metadata: {
-              source: 'email',
-              isCloudService: scenario.isCloud,
-              deviceType: sessionData.deviceType,
-              sessionId
-            }
-          });
-        }
-      }
-    }
+    dailyEvents.forEach(({ event, log }) => {
+      events.push(event);
+      logs.push(log);
+    });
   }
 
   // Calculate metrics

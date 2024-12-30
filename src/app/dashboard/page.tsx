@@ -8,8 +8,6 @@ import { TrackingLogs } from '@/components/dashboard/TrackingLogs';
 import { CollapsibleSection } from '@/components/dashboard/CollapsibleSection';
 import { UploadResume } from '@/components/UploadResume';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { Sheet, SheetContent } from '@/components/ui/sheet';
-import { Loader2 } from 'lucide-react';
 import type { Resume, ResumeEvent, TrackingLog } from '@prisma/client';
 
 interface DashboardData {
@@ -164,28 +162,20 @@ export default function DashboardPage() {
   }
 
   return (
-    <>
-      <Sheet open={loading}>
-        <SheetContent side="top" className="flex items-center justify-center">
-          <div className="flex items-center gap-4">
-            <Loader2 className="h-6 w-6 animate-spin" />
-            <p className="text-lg">Loading dashboard data...</p>
-          </div>
-        </SheetContent>
-      </Sheet>
+    <div className="container mx-auto py-8 space-y-8">
+      <div className="flex items-center justify-between">
+        <h1 className="text-3xl font-bold">Resume Dashboard</h1>
+        <ThemeToggle />
+      </div>
 
       {data && (
-        <div className="container mx-auto py-8 space-y-8">
-          <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold">Resume Dashboard</h1>
-            <ThemeToggle />
-          </div>
-
+        <>
           <StatsOverview
             totalResumes={data.resumes.length}
             totalViews={getTotalViews(data)}
             uniqueLocations={getUniqueLocations(data)}
             latestActivity={getLatestActivity(data)}
+            loading={loading}
           />
           
           <div className="grid gap-4">
@@ -198,6 +188,7 @@ export default function DashboardPage() {
               <Recommendations
                 resumes={data.resumes}
                 logs={data.logs}
+                loading={loading}
               />
             </CollapsibleSection>
 
@@ -224,6 +215,7 @@ export default function DashboardPage() {
                 onArchive={handleArchive}
                 onDelete={handleDelete}
                 onCopyUrl={handleCopyUrl}
+                loading={loading}
               />
             </CollapsibleSection>
 
@@ -233,11 +225,14 @@ export default function DashboardPage() {
               isExpanded={expandedSections.logs}
               onToggle={() => toggleSection('logs')}
             >
-              <TrackingLogs logs={data.logs} />
+              <TrackingLogs 
+                logs={data.logs} 
+                loading={loading}
+              />
             </CollapsibleSection>
           </div>
-        </div>
+        </>
       )}
-    </>
+    </div>
   );
 } 

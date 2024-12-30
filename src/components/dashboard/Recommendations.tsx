@@ -1,11 +1,12 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { format, parseISO, subDays, startOfDay, startOfWeek, startOfMonth, isWithinInterval, addDays } from "date-fns";
 import { PrismaClient } from "@prisma/client";
-import { useState, type ReactNode, useEffect } from "react";
+import { useState, type ReactNode } from "react";
 import { TrendingUp, AlertTriangle, Lightbulb, BarChart as BarChartIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Resume = NonNullable<Awaited<ReturnType<PrismaClient['resume']['findFirst']>>>;
 type TrackingLog = NonNullable<Awaited<ReturnType<PrismaClient['trackingLog']['findFirst']>>>;
@@ -41,6 +42,7 @@ interface RecommendationsProps {
   resumes?: Resume[];
   logs?: TrackingLog[];
   events?: ResumeEvent[];
+  loading?: boolean;
 }
 
 function getTimeRange(range: string): TimeRange {
@@ -190,18 +192,23 @@ function ChartSection({ title, description, children }: { title: string; descrip
   );
 }
 
-export function Recommendations({ resumes = [], logs = [], events = [] }: RecommendationsProps) {
-  const [timeRange, setTimeRange] = useState('week');
-  const range = getTimeRange(timeRange);
-  
-  const chartData = getChartData(events, range);
-  const deviceData = getDeviceData(logs, range);
-  const locationData = getLocationData(logs, range);
+export function Recommendations({ resumes = [], logs = [], events = [], loading }: RecommendationsProps) {
+  const LoadingCard = () => (
+    <Card className="p-4">
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-4 w-[200px]" />
+          <Skeleton className="h-6 w-[80px]" />
+        </div>
+        <Skeleton className="h-4 w-[150px]" />
+        <Skeleton className="h-4 w-[180px]" />
+      </div>
+    </Card>
+  );
 
   return (
     <div className="space-y-8">
       <div>
-        <h3 className="text-lg font-medium mb-4">Recommendations</h3>
         <div className="space-y-6">
           <div>
             <h4 className="text-sm font-medium mb-4 flex items-center gap-2">
@@ -209,75 +216,94 @@ export function Recommendations({ resumes = [], logs = [], events = [] }: Recomm
               Performance Insights
             </h4>
             <div className="grid gap-4 sm:grid-cols-2">
-              {resumes.map(resume => {
-                const resumeLogs = logs.filter(log => log.resumeId === resume.id);
-                const viewCount = resumeLogs.length;
-                const uniqueLocations = new Set(resumeLogs.map(log => log.location).filter(Boolean)).size;
-                
-                return (
-                  <Card key={resume.id} className="p-4">
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium">{resume.jobTitle}</span>
-                        <Badge variant="outline">{viewCount} views</Badge>
+              {loading ? (
+                <>
+                  <LoadingCard />
+                  <LoadingCard />
+                  <LoadingCard />
+                  <LoadingCard />
+                </>
+              ) : (
+                resumes.map(resume => {
+                  const resumeLogs = logs.filter(log => log.resumeId === resume.id);
+                  const viewCount = resumeLogs.length;
+                  const uniqueLocations = new Set(resumeLogs.map(log => log.location).filter(Boolean)).size;
+                  
+                  return (
+                    <Card key={resume.id} className="p-4">
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium">{resume.jobTitle}</span>
+                          <Badge variant="outline">{viewCount} views</Badge>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          {uniqueLocations} unique locations
+                        </div>
+                        {viewCount === 0 && (
+                          <div className="flex items-center gap-2 text-xs text-amber-500">
+                            <AlertTriangle className="h-3 w-3" />
+                            No views yet - consider sharing more widely
+                          </div>
+                        )}
+                        {viewCount > 0 && viewCount < 5 && (
+                          <div className="flex items-center gap-2 text-xs text-blue-500">
+                            <Lightbulb className="h-3 w-3" />
+                            Getting traction - optimize for more visibility
+                          </div>
+                        )}
+                        {viewCount >= 5 && (
+                          <div className="flex items-center gap-2 text-xs text-green-500">
+                            <TrendingUp className="h-3 w-3" />
+                            Good engagement - maintain momentum
+                          </div>
+                        )}
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        {uniqueLocations} unique locations
-                      </div>
-                      {viewCount === 0 && (
-                        <div className="flex items-center gap-2 text-xs text-amber-500">
-                          <AlertTriangle className="h-3 w-3" />
-                          No views yet - consider sharing more widely
-                        </div>
-                      )}
-                      {viewCount > 0 && viewCount < 5 && (
-                        <div className="flex items-center gap-2 text-xs text-blue-500">
-                          <Lightbulb className="h-3 w-3" />
-                          Getting traction - optimize for more visibility
-                        </div>
-                      )}
-                      {viewCount >= 5 && (
-                        <div className="flex items-center gap-2 text-xs text-green-500">
-                          <TrendingUp className="h-3 w-3" />
-                          Good engagement - maintain momentum
-                        </div>
-                      )}
-                    </div>
-                  </Card>
-                );
-              })}
+                    </Card>
+                  );
+                })
+              )}
             </div>
           </div>
 
           <div>
             <h4 className="text-sm font-medium mb-4">Recommended Actions</h4>
             <div className="space-y-3">
-              {resumes.some(r => !r.jobListingUrl) && (
-                <Alert>
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>
-                    Some resumes are missing job listing URLs. Adding these can help track application context.
-                  </AlertDescription>
-                </Alert>
-              )}
-              {logs.some(log => log.isBot) && (
-                <Alert>
-                  <AlertTriangle className="h-4 w-4" />
-                  <AlertDescription>
-                    Bot traffic detected. Consider implementing additional tracking protection.
-                  </AlertDescription>
-                </Alert>
-              )}
-              {resumes.some(r => {
-                const resumeLogs = logs.filter(log => log.resumeId === r.id);
-                return resumeLogs.length === 0;
-              }) && (
-                <Alert>
-                  <Lightbulb className="h-4 w-4" />
-                  <AlertDescription>
-                    Some resumes have no views. Consider sharing them on relevant platforms or with recruiters.
-                  </AlertDescription>
-                </Alert>
+              {loading ? (
+                <>
+                  <Skeleton className="h-[72px] w-full" />
+                  <Skeleton className="h-[72px] w-full" />
+                  <Skeleton className="h-[72px] w-full" />
+                </>
+              ) : (
+                <>
+                  {resumes.some(r => !r.jobListingUrl) && (
+                    <Alert>
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        Some resumes are missing job listing URLs. Adding these can help track application context.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  {logs.some(log => log.isBot) && (
+                    <Alert>
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>
+                        Bot traffic detected. Consider implementing additional tracking protection.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  {resumes.some(r => {
+                    const resumeLogs = logs.filter(log => log.resumeId === r.id);
+                    return resumeLogs.length === 0;
+                  }) && (
+                    <Alert>
+                      <Lightbulb className="h-4 w-4" />
+                      <AlertDescription>
+                        Some resumes have no views. Consider sharing them on relevant platforms or with recruiters.
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </>
               )}
             </div>
           </div>
@@ -285,22 +311,31 @@ export function Recommendations({ resumes = [], logs = [], events = [] }: Recomm
           <div>
             <h4 className="text-sm font-medium mb-4">Best Practices</h4>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Card className="p-4">
-                <h5 className="text-sm font-medium mb-2">Tracking Optimization</h5>
-                <ul className="text-sm text-muted-foreground space-y-2">
-                  <li>• Use unique versions for different job applications</li>
-                  <li>• Add job listing URLs for context</li>
-                  <li>• Monitor view durations for engagement</li>
-                </ul>
-              </Card>
-              <Card className="p-4">
-                <h5 className="text-sm font-medium mb-2">Distribution Strategy</h5>
-                <ul className="text-sm text-muted-foreground space-y-2">
-                  <li>• Share tracking links in applications</li>
-                  <li>• Use different versions for different roles</li>
-                  <li>• Track which platforms drive most views</li>
-                </ul>
-              </Card>
+              {loading ? (
+                <>
+                  <Skeleton className="h-[160px] w-full" />
+                  <Skeleton className="h-[160px] w-full" />
+                </>
+              ) : (
+                <>
+                  <Card className="p-4">
+                    <h5 className="text-sm font-medium mb-2">Tracking Optimization</h5>
+                    <ul className="text-sm text-muted-foreground space-y-2">
+                      <li>• Use unique versions for different job applications</li>
+                      <li>• Add job listing URLs for context</li>
+                      <li>• Monitor view durations for engagement</li>
+                    </ul>
+                  </Card>
+                  <Card className="p-4">
+                    <h5 className="text-sm font-medium mb-2">Distribution Strategy</h5>
+                    <ul className="text-sm text-muted-foreground space-y-2">
+                      <li>• Share tracking links in applications</li>
+                      <li>• Use different versions for different roles</li>
+                      <li>• Track which platforms drive most views</li>
+                    </ul>
+                  </Card>
+                </>
+              )}
             </div>
           </div>
         </div>
