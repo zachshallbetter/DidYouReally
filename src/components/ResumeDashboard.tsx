@@ -47,9 +47,9 @@ import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { LineChart, BarChart, DoughnutChart } from "@/components/ui/charts";
 import { Laptop, Smartphone, Globe } from "lucide-react";
+import { type TrackingLog } from '@/lib/types';
 
 type Resume = Database['public']['Tables']['resumes']['Row'];
-type TrackingLog = Database['public']['Tables']['tracking_logs']['Row'];
 
 const editFormSchema = z.object({
   job_title: z.string().min(1, "Job title is required"),
@@ -61,7 +61,7 @@ type EditFormValues = z.infer<typeof editFormSchema>;
 
 export function ResumeDashboard() {
   const [resumes, setResumes] = useState<Resume[]>([]);
-  const [logs, setLogs] = useState<TrackingLog[]>([]);
+  const [logs, setLogs] = useState<Partial<TrackingLog>[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -225,6 +225,7 @@ export function ResumeDashboard() {
   const getChartData = () => {
     // Get engagement data
     const viewsByDate = logs.reduce((acc: Record<string, number>, log) => {
+      if (!log.timestamp) return acc;
       const date = new Date(log.timestamp).toLocaleDateString();
       acc[date] = (acc[date] || 0) + 1;
       return acc;
@@ -232,6 +233,7 @@ export function ResumeDashboard() {
 
     // Get device data
     const deviceTypes = logs.reduce((acc: Record<string, number>, log) => {
+      if (!log.user_agent) return acc;
       const userAgent = log.user_agent.toLowerCase();
       const type = userAgent.includes('mobile') ? 'Mobile' :
                    userAgent.includes('tablet') ? 'Tablet' : 'Desktop';
@@ -357,7 +359,7 @@ export function ResumeDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {logs[0] ? new Date(logs[0].timestamp).toLocaleDateString() : 'N/A'}
+              {logs[0]?.timestamp ? new Date(logs[0].timestamp).toLocaleDateString() : 'N/A'}
             </div>
             <p className="text-xs text-muted-foreground">Most recent view</p>
           </CardContent>
@@ -407,7 +409,7 @@ export function ResumeDashboard() {
                   </div>
                   <div className="text-2xl font-bold">
                     {resumes.filter(r => logs.filter(log => 
-                      new Date(log.timestamp).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000
+                      log.timestamp && new Date(log.timestamp).getTime() > Date.now() - 7 * 24 * 60 * 60 * 1000
                     ).length > 0).length}
                   </div>
                   <p className="text-xs text-muted-foreground">Active in last 7 days</p>
@@ -440,13 +442,13 @@ export function ResumeDashboard() {
                   <div className="flex items-center gap-2 text-xs">
                     <Laptop className="h-3 w-3 text-indigo-500" />
                     <span>Desktop: {((logs.filter(l => 
-                      !l.user_agent.toLowerCase().includes('mobile')
+                      l.user_agent?.toLowerCase().includes('mobile') === false
                     ).length / logs.length) * 100).toFixed(1)}%</span>
                   </div>
                   <div className="flex items-center gap-2 text-xs">
                     <Smartphone className="h-3 w-3 text-blue-500" />
                     <span>Mobile: {((logs.filter(l => 
-                      l.user_agent.toLowerCase().includes('mobile')
+                      l.user_agent?.toLowerCase().includes('mobile') === true
                     ).length / logs.length) * 100).toFixed(1)}%</span>
                   </div>
                 </div>
@@ -657,7 +659,7 @@ export function ResumeDashboard() {
                         <Badge variant="secondary" className="font-mono">v{resume.version}</Badge>
                       </TableCell>
                       <TableCell>
-                        {new Date(resume.created_at).toLocaleDateString()}
+                        {new Date(resume.created_at || Date.now()).toLocaleDateString()}
                       </TableCell>
                       <TableCell>
                         <Badge 
@@ -875,7 +877,7 @@ export function ResumeDashboard() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-xs">
-                        {new Date(log.timestamp).toLocaleString()}
+                        {new Date(log.timestamp || Date.now()).toLocaleString()}
                       </TableCell>
                     </TableRow>
                   ))

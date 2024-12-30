@@ -60,7 +60,7 @@ export const trackingLogSchema = {
     resume_id: { 
       type: 'uuid', 
       nullable: false,
-      references: { table: 'resumes', column: 'id', onDelete: 'CASCADE' }
+      references: { table: 'resumes', column: 'id', onDelete: 'CASCADE' as const }
     },
     ip_address: { type: 'text', nullable: false },
     user_agent: { type: 'text', nullable: false },
@@ -115,7 +115,7 @@ export const applicationTrackingSchema = {
     resume_id: { 
       type: 'uuid', 
       nullable: false,
-      references: { table: 'resumes', column: 'id', onDelete: 'CASCADE' }
+      references: { table: 'resumes', column: 'id', onDelete: 'CASCADE' as const }
     },
     company_name: { type: 'text', nullable: false },
     position: { type: 'text', nullable: false },
@@ -145,7 +145,7 @@ export type ColumnDefinition = {
   primaryKey?: boolean;
   nullable?: boolean;
   defaultValue?: any;
-  enum?: readonly string[];
+  enum?: string[];
   references?: {
     table: string;
     column: string;
@@ -164,9 +164,9 @@ export type TableSchema = {
 };
 
 // Export all schemas
-export const schemas = {
+export const schemas: Record<string, TableSchema> = {
   resumes: resumeSchema,
   tracking_logs: trackingLogSchema,
   user_preferences: userPreferencesSchema,
   application_tracking: applicationTrackingSchema
-} as const; 
+}; 
