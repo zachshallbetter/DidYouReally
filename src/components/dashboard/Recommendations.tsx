@@ -177,4 +177,4 @@ export function Recommendations({ resumes, logs }: RecommendationsProps) {
       </Card>
     </div>
   );
-} 
+}

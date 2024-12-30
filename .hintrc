@@ -1,0 +1,11 @@
+{
+  "extends": [
+    "development"
+  ],
+  "hints": {
+    "no-inline-styles": "off",
+    "no-duplicate-headings": "off",
+    "MD024": "off",
+    "markdownlint/md024": "off"
+  }
+}
