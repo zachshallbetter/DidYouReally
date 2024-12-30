@@ -12,6 +12,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MoreHorizontal, Copy, Monitor, Smartphone, Tablet, Cloud } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { Resume } from "@/types/resume";
+import { useState } from "react";
+import { ResumeDetailsSheet } from "./ResumeDetailsSheet";
 
 interface ResumeTableProps {
   resumes: Resume[];
@@ -23,6 +25,9 @@ interface ResumeTableProps {
 }
 
 export function ResumeTable({ resumes, onEdit, onArchive, onDelete, onCopyUrl, loading }: ResumeTableProps) {
+  const [selectedResume, setSelectedResume] = useState<Resume | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
+
   const getDeviceIcon = (deviceType: string) => {
     switch (deviceType) {
       case 'desktop':
@@ -86,6 +91,13 @@ export function ResumeTable({ resumes, onEdit, onArchive, onDelete, onCopyUrl, l
 
   return (
     <div className="space-y-4">
+      <ResumeDetailsSheet
+        resume={selectedResume}
+        open={sheetOpen}
+        onOpenChange={setSheetOpen}
+        onCopyUrl={onCopyUrl}
+      />
+
       <Table>
         <TableHeader>
           <TableRow>
@@ -117,7 +129,14 @@ export function ResumeTable({ resumes, onEdit, onArchive, onDelete, onCopyUrl, l
               const recentViews = getRecentViews(resume);
 
               return (
-                <TableRow key={resume.id}>
+                <TableRow 
+                  key={resume.id}
+                  className="cursor-pointer hover:bg-muted/50"
+                  onClick={() => {
+                    setSelectedResume(resume);
+                    setSheetOpen(true);
+                  }}
+                >
                   <TableCell className="font-medium">{resume.jobTitle}</TableCell>
                   <TableCell>
                     <div className="flex flex-col">

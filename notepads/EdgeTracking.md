@@ -245,6 +245,270 @@ model TrackingLog {
   - Resumes with no opens.
   - Links with high click rates.
 
+Here's how to implement **pixel and link tracking**, integrate it into your **dashboard**, and automate the setup for seamless use:
+
 ---
 
-Would you like assistance implementing this in your application or additional scripts to automate the setup?
+### **1. Pixel Tracking Setup**
+
+#### **Integration into PDF Generation**
+
+The tracking pixel (a 1x1 image) needs to be embedded dynamically during the PDF generation or modification process.
+
+**Python Code for Embedding a Pixel**
+
+```python
+from fpdf import FPDF
+
+def embed_pixel(pdf_path, output_path, tracking_url):
+    pdf = FPDF()
+    pdf.add_page()
+    pdf.set_font("Arial", size=12)
+
+    # Add pixel tracking URL as an invisible image
+    # Note: Adjust x, y, width, height as needed for visibility/invisibility
+    pdf.image(tracking_url, x=1, y=1, w=1, h=1)
+
+    # Example resume content
+    pdf.cell(200, 10, txt="Resume Content Here", ln=True, align="C")
+
+    pdf.output(output_path)
+
+# Example usage
+tracking_url = "https://your-vercel-app.vercel.app/api/pixel?unique_id=resume123"
+embed_pixel("resume.pdf", "tracked_resume.pdf", tracking_url)
+```
+
+---
+
+### **2. Link Tracking Setup**
+
+#### **Replace Links in PDF**
+
+To embed link tracking, replace all URLs in the PDF with generated tracking links.
+
+**Python Code for Replacing Links**
+
+```python
+from PyPDF2 import PdfReader, PdfWriter
+
+def replace_links_with_tracking(input_pdf, output_pdf, link_mapping):
+    reader = PdfReader(input_pdf)
+    writer = PdfWriter()
+
+    for page in reader.pages:
+        text = page.extract_text()
+        for original_url, tracking_url in link_mapping.items():
+            text = text.replace(original_url, tracking_url)
+        page.merge_text(text)  # Update the page with the new links
+        writer.add_page(page)
+
+    with open(output_pdf, "wb") as f:
+        writer.write(f)
+
+# Example usage
+link_mapping = {
+    "https://example.com": "https://your-vercel-app.vercel.app/api/link?unique_id=resume123&target_url=https%3A%2F%2Fexample.com"
+}
+replace_links_with_tracking("resume.pdf", "tracked_resume.pdf", link_mapping)
+```
+
+---
+
+### **3. Supabase API Integration**
+
+#### **Pixel API Endpoint**
+
+Logs access when the tracking pixel is requested.
+**Supabase Edge Function: `/api/pixel.js`**
+
+```javascript
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+
+export default async function handler(req, res) {
+  const { unique_id } = req.query;
+
+  try {
+    await supabase.from('tracking_logs').insert({
+      resumeId: unique_id,
+      ip_address: req.headers['x-forwarded-for'] || req.socket.remoteAddress,
+      user_agent: req.headers['user-agent'],
+      accessedAt: new Date(),
+      action: 'pixel_request',
+    });
+
+    const pixel = Buffer.from(
+      'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/wIAAgUBxOYfu6IAAAAASUVORK5CYII=',
+      'base64'
+    );
+    res.setHeader('Content-Type', 'image/png');
+    res.end(pixel);
+  } catch (error) {
+    console.error('Error logging pixel request:', error);
+    res.status(500).json({ error: 'Pixel tracking failed' });
+  }
+}
+```
+
+#### **Link API Endpoint**
+
+Logs clicks when a tracking link is accessed and redirects to the target URL.
+**Supabase Edge Function: `/api/link.js`**
+
+```javascript
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+
+export default async function handler(req, res) {
+  const { unique_id, target_url } = req.query;
+
+  try {
+    await supabase.from('tracking_logs').insert({
+      resumeId: unique_id,
+      ip_address: req.headers['x-forwarded-for'] || req.socket.remoteAddress,
+      user_agent: req.headers['user-agent'],
+      accessedAt: new Date(),
+      action: 'link_click',
+      metadata: { target_url },
+    });
+
+    res.writeHead(302, { Location: decodeURIComponent(target_url) });
+    res.end();
+  } catch (error) {
+    console.error('Error logging link click:', error);
+    res.status(500).json({ error: 'Link tracking failed' });
+  }
+}
+```
+
+---
+
+### **4. Logging Enhancements**
+
+Update the `tracking_logs` table schema to include:
+
+- **Action**: Type of event (`pixel_request`, `link_click`).
+- **Metadata**: JSON for storing additional information (e.g., `target_url`).
+
+**Prisma Schema Update**:
+
+```prisma
+model TrackingLog {
+  id           String   @id @default(uuid())
+  resumeId     String   @relation(fields: [resumeId], references: [id])
+  ip_address   String
+  user_agent   String
+  accessedAt   DateTime @default(now())
+  action       String   // e.g., "pixel_request", "link_click"
+  metadata     Json?    // Optional: Store target URL for link clicks
+}
+```
+
+---
+
+### **5. Dashboard Integration**
+
+#### **Pixel Tracking Insights**
+
+- Show total number of opens per resume.
+- Display unique device types and IPs.
+
+**SQL Query for Pixel Tracking Data**:
+
+```sql
+select resumeId, count(*) as total_opens, count(distinct ip_address) as unique_opens
+from tracking_logs
+where action = 'pixel_request'
+group by resumeId;
+```
+
+#### **Link Tracking Insights**
+
+- Show total clicks per link.
+- Highlight the most clicked links.
+
+**SQL Query for Link Tracking Data**:
+
+```sql
+select metadata->>'target_url' as target_url, count(*) as total_clicks
+from tracking_logs
+where action = 'link_click'
+group by metadata->>'target_url';
+```
+
+#### **Dashboard UI Example**
+
+Add a section for tracking metrics in the **Resume Details View**:
+
+```tsx
+import { Card, Table } from "shadcn-ui";
+
+export function ResumeMetrics({ pixelData, linkData }) {
+  return (
+    <div className="metrics-section">
+      <Card>
+        <h3>Pixel Tracking</h3>
+        <Table>
+          <thead>
+            <tr>
+              <th>Resume ID</th>
+              <th>Total Opens</th>
+              <th>Unique Opens</th>
+            </tr>
+          </thead>
+          <tbody>
+            {pixelData.map((row) => (
+              <tr key={row.resumeId}>
+                <td>{row.resumeId}</td>
+                <td>{row.total_opens}</td>
+                <td>{row.unique_opens}</td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      </Card>
+
+      <Card>
+        <h3>Link Tracking</h3>
+        <Table>
+          <thead>
+            <tr>
+              <th>Target URL</th>
+              <th>Total Clicks</th>
+            </tr>
+          </thead>
+          <tbody>
+            {linkData.map((row) => (
+              <tr key={row.target_url}>
+                <td>{row.target_url}</td>
+                <td>{row.total_clicks}</td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      </Card>
+    </div>
+  );
+}
+```
+
+---
+
+### **6. Automation Script**
+
+A script to automate embedding tracking pixels and links into resumes:
+
+```python
+def automate_tracking(resume_id, original_pdf, output_pdf, links):
+    pixel_url = f"https://your-vercel-app.vercel.app/api/pixel?unique_id={resume_id}"
+    tracking_links = {
+        link: f"https://your-vercel-app.vercel.app/api/link?unique_id={resume_id}&target_url={link}"
+        for link in links
+    }
+
+    embed_pixel(original_pdf, output_pdf, pixel_url)
+    replace_links_with_tracking(original_pdf, output_pdf, tracking_links)
+```
