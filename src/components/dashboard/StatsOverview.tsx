@@ -1,25 +1,17 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Users, Eye, MapPin, Clock } from "lucide-react";
-import { type TrackingLog } from '@/lib/types';
-import type { Database } from '@/types/supabase';
-
-type Resume = Database['public']['Tables']['resumes']['Row'];
+import { format } from 'date-fns';
 
 interface StatsOverviewProps {
-  resumes: Resume[];
-  logs: Partial<TrackingLog>[];
+  totalResumes: number;
+  totalViews: number;
+  uniqueLocations: number;
+  latestActivity: Date | null;
 }
 
-export function StatsOverview({ resumes, logs }: StatsOverviewProps) {
+export function StatsOverview({ totalResumes, totalViews, uniqueLocations, latestActivity }: StatsOverviewProps) {
   // Get recent activity
-  const recentActivity = logs
-    .filter(log => log.timestamp)
-    .sort((a, b) => {
-      const dateA = new Date(a.timestamp!).getTime();
-      const dateB = new Date(b.timestamp!).getTime();
-      return dateB - dateA;
-    })
-    .slice(0, 5);
+  const formattedDate = latestActivity ? format(latestActivity, 'MM/dd/yyyy') : 'No activity';
 
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
@@ -29,7 +21,7 @@ export function StatsOverview({ resumes, logs }: StatsOverviewProps) {
           <Users className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{resumes.length}</div>
+          <div className="text-2xl font-bold">{totalResumes}</div>
           <p className="text-xs text-muted-foreground">Active resumes being tracked</p>
         </CardContent>
       </Card>
@@ -39,7 +31,7 @@ export function StatsOverview({ resumes, logs }: StatsOverviewProps) {
           <Eye className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">{logs.length}</div>
+          <div className="text-2xl font-bold">{totalViews}</div>
           <p className="text-xs text-muted-foreground">Resume views tracked</p>
         </CardContent>
       </Card>
@@ -49,9 +41,7 @@ export function StatsOverview({ resumes, logs }: StatsOverviewProps) {
           <MapPin className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">
-            {new Set(logs.map(log => `${log.city},${log.country}`).filter(Boolean)).size}
-          </div>
+          <div className="text-2xl font-bold">{uniqueLocations}</div>
           <p className="text-xs text-muted-foreground">Different viewing locations</p>
         </CardContent>
       </Card>
@@ -61,9 +51,7 @@ export function StatsOverview({ resumes, logs }: StatsOverviewProps) {
           <Clock className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold">
-            {logs[0]?.timestamp ? new Date(logs[0].timestamp).toLocaleDateString() : 'N/A'}
-          </div>
+          <div className="text-2xl font-bold">{formattedDate}</div>
           <p className="text-xs text-muted-foreground">Most recent view</p>
         </CardContent>
       </Card>

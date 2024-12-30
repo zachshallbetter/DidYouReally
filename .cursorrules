@@ -3,21 +3,30 @@
 
 ## Core Principles
 enforce_rules:
-  - "use npm instead of yarn or pnpm"
+  - "Use npm instead of yarn or pnpm"
   - "Use TypeScript for all code"
-  - "Use Shadcn UI for all components via npx shadcn@latest add [component]"
+  - "Use shadcn components via npx shadcn@latest add [component] without modification"
   - "Use Next.js for all pages"
   - "Use Tailwind CSS for all styling"
-  - "Use Supabase for all database operations"
+  - "Use Prisma for all database operations"
   - "Use Vercel for all hosting and deployment"
   - "Use Vercel AI for all AI operations"
   - "Use Vercel Edge Functions for all edge operations"
-  - "Use the phrase "I will", instead of "I'll help"
+  - "Use the phrase 'I will', instead of 'I'll help'"
   - "Prioritize human readability over machine optimization"
   - "Maintain data privacy and security at all times"
   - "Focus on meaningful metrics over arbitrary numbers"
   - "Ensure accessibility and inclusivity in all features"
   - "Preserve authenticity in resume representation"
+
+## Component Guidelines
+shadcn_rules:
+  - "Install components using npx shadcn@latest add [component]"
+  - "Never modify shadcn component files directly"
+  - "Create wrapper components for custom functionality"
+  - "Use composition over modification"
+  - "Keep shadcn component files in src/components/ui"
+  - "Keep custom components separate from shadcn components"
 
 ## Code Structure
 path_rules:

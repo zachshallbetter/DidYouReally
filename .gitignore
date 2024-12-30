@@ -44,4 +44,14 @@ next-env.d.ts
 
 # IDE and tooling
 .vscode/
+
+# Database
 /supabase/
+/prisma/*.db
+/prisma/migrations/
+.env
+.env*.local
+
+# Generated Prisma Client
+node_modules/@prisma/client
+.prisma

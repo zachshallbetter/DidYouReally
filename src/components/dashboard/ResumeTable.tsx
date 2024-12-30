@@ -27,13 +27,13 @@ import {
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { MoreHorizontal, Eye, LinkIcon, Edit, Archive, Trash2, Copy } from "lucide-react";
-import type { Database } from '@/types/supabase';
+import { PrismaClient } from "@prisma/client";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import formatDistanceToNow from "date-fns/formatDistanceToNow";
+import { formatDistanceToNow, format } from "date-fns";
 
-type Resume = Database['public']['Tables']['resumes']['Row'];
+type Resume = NonNullable<Awaited<ReturnType<PrismaClient['resume']['findFirst']>>>;
 
 const editFormSchema = z.object({
   job_title: z.string().min(1, "Job title is required"),
@@ -48,13 +48,142 @@ interface ResumeTableProps {
   onEdit: (resumeId: string, data: EditFormValues) => Promise<void>;
   onArchive: (resumeId: string) => Promise<void>;
   onDelete: (resumeId: string) => Promise<void>;
-  onCopyUrl: (url: string) => void;
+  onCopyUrl: (url: string) => Promise<void>;
 }
 
 export function ResumeTable({ resumes, onEdit, onArchive, onDelete, onCopyUrl }: ResumeTableProps) {
   const form = useForm<EditFormValues>({
     resolver: zodResolver(editFormSchema),
   });
+
+  const rows = resumes.map((resume) => ({
+    id: resume.id,
+    jobTitle: resume.jobTitle,
+    company: resume.company?.name || 'Unknown Company',
+    companyId: resume.companyId,
+    status: resume.status,
+    trackingUrl: resume.trackingUrl,
+    updatedAt: resume.updatedAt ? formatDistanceToNow(new Date(resume.updatedAt)) : 'Never',
+    createdAt: resume.createdAt ? format(new Date(resume.createdAt), 'PPP') : 'N/A',
+    actions: (
+      <DropdownMenu>
+        <DropdownMenuTrigger className="h-8 w-8 p-0">
+          <div className="h-8 w-8 p-0 flex items-center justify-center hover:bg-muted rounded-md">
+            <MoreHorizontal className="h-4 w-4" />
+            <span className="sr-only">Open menu</span>
+          </div>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+          <DropdownMenuItem
+            onClick={() => window.open(`/resume/${resume.id}`, '_blank')}
+            className="cursor-pointer"
+          >
+            <Eye className="mr-2 h-4 w-4" />
+            View Resume
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => onCopyUrl(resume.trackingUrl)}
+            className="cursor-pointer"
+          >
+            <LinkIcon className="mr-2 h-4 w-4" />
+            Copy Tracking Link
+          </DropdownMenuItem>
+          <Dialog>
+            <DialogTrigger asChild>
+              <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="cursor-pointer">
+                <Edit className="mr-2 h-4 w-4" />
+                Edit
+              </DropdownMenuItem>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Edit Resume</DialogTitle>
+                <DialogDescription>
+                  Update the resume details below. Note that editing a resume that has already been viewed may affect tracking consistency.
+                </DialogDescription>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit((data) => onEdit(resume.id, data))} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="job_title"
+                    defaultValue={resume.jobTitle}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Job Title</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="company"
+                    defaultValue={resume.companyId}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Company</FormLabel>
+                        <FormControl>
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="job_listing_url"
+                    defaultValue={resume.jobListingUrl || ""}
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Job Listing URL</FormLabel>
+                        <FormControl>
+                          <Input {...field} type="url" placeholder="https://..." />
+                        </FormControl>
+                        <FormDescription>
+                          The original job posting URL for reference
+                        </FormDescription>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="flex justify-end gap-2">
+                    <Button type="submit">Save Changes</Button>
+                  </div>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onClick={() => onArchive(resume.id)}
+            className="cursor-pointer"
+          >
+            <Archive className="mr-2 h-4 w-4" />
+            Archive
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => onDelete(resume.id)}
+            className="cursor-pointer text-destructive"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    ),
+  }));
+
+  const handleEdit = async (resumeId: string, data: EditFormValues) => {
+    await onEdit(resumeId, {
+      job_title: data.job_title,
+      company: data.company,
+      job_listing_url: data.job_listing_url
+    });
+  };
 
   return (
     <Table>
@@ -63,7 +192,7 @@ export function ResumeTable({ resumes, onEdit, onArchive, onDelete, onCopyUrl }:
           <TableHead className="w-[200px]">Job Title</TableHead>
           <TableHead>Company</TableHead>
           <TableHead>Tracking URL</TableHead>
-          <TableHead>Version</TableHead>
+          <TableHead>Last Modified</TableHead>
           <TableHead>Created</TableHead>
           <TableHead>Status</TableHead>
           <TableHead>Actions</TableHead>
@@ -77,22 +206,24 @@ export function ResumeTable({ resumes, onEdit, onArchive, onDelete, onCopyUrl }:
             </TableCell>
           </TableRow>
         ) : (
-          resumes.map((resume) => (
-            <TableRow key={resume.id} className="hover:bg-muted/50">
-              <TableCell className="font-medium">{resume.title}</TableCell>
+          rows.map((row) => (
+            <TableRow key={row.id} className="hover:bg-muted/50">
+              <TableCell className="font-medium">{row.jobTitle}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
-                  <div className="font-medium">{resume.company}</div>
-                  <Badge variant="outline" className="font-normal">
-                    {resume.company}
-                  </Badge>
+                  <div className="font-medium">{row.company}</div>
+                  {row.companyId && (
+                    <Badge variant="outline" className="font-normal">
+                      {row.companyId}
+                    </Badge>
+                  )}
                 </div>
               </TableCell>
               <TableCell className="font-mono text-xs">
                 <div className="flex items-center gap-2">
-                  <span className="truncate max-w-[200px]">{resume.tracking_url}</span>
+                  <span className="truncate max-w-[200px]">{row.trackingUrl}</span>
                   <button
-                    onClick={() => onCopyUrl(resume.tracking_url)}
+                    onClick={() => onCopyUrl(row.trackingUrl)}
                     className="p-1 hover:bg-muted rounded-md"
                     aria-label="Copy tracking URL"
                     title="Copy tracking URL"
@@ -104,130 +235,19 @@ export function ResumeTable({ resumes, onEdit, onArchive, onDelete, onCopyUrl }:
               <TableCell>
                 <div className="flex items-center gap-2">
                   <div className="text-sm text-muted-foreground">
-                    Last modified {formatDistanceToNow(new Date(resume.updated_at))} ago
+                    {row.updatedAt} ago
                   </div>
                 </div>
               </TableCell>
-              <TableCell>
-                {new Date(resume.created_at || Date.now()).toLocaleDateString()}
-              </TableCell>
+              <TableCell>{row.createdAt}</TableCell>
               <TableCell>
                 <div className="flex items-center gap-2">
                   <div className="text-sm text-muted-foreground">
-                    {resume.status}
+                    {row.status}
                   </div>
                 </div>
               </TableCell>
-              <TableCell>
-                <DropdownMenu>
-                  <DropdownMenuTrigger className="h-8 w-8 p-0">
-                    <div className="h-8 w-8 p-0 flex items-center justify-center hover:bg-muted rounded-md">
-                      <MoreHorizontal className="h-4 w-4" />
-                      <span className="sr-only">Open menu</span>
-                    </div>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuLabel>Actions</DropdownMenuLabel>
-                    <DropdownMenuItem
-                      onClick={() => window.open(`/resume/${resume.id}`, '_blank')}
-                      className="cursor-pointer"
-                    >
-                      <Eye className="mr-2 h-4 w-4" />
-                      View Resume
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => onCopyUrl(resume.tracking_url)}
-                      className="cursor-pointer"
-                    >
-                      <LinkIcon className="mr-2 h-4 w-4" />
-                      Copy Tracking Link
-                    </DropdownMenuItem>
-                    <Dialog>
-                      <DialogTrigger asChild>
-                        <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="cursor-pointer">
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                      </DialogTrigger>
-                      <DialogContent>
-                        <DialogHeader>
-                          <DialogTitle>Edit Resume</DialogTitle>
-                          <DialogDescription>
-                            Update the resume details below. Note that editing a resume that has already been viewed may affect tracking consistency.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <Form {...form}>
-                          <form onSubmit={form.handleSubmit((data) => onEdit(resume.id, data))} className="space-y-4">
-                            <FormField
-                              control={form.control}
-                              name="job_title"
-                              defaultValue={resume.title}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Job Title</FormLabel>
-                                  <FormControl>
-                                    <Input {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name="company"
-                              defaultValue={resume.company}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Company</FormLabel>
-                                  <FormControl>
-                                    <Input {...field} />
-                                  </FormControl>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <FormField
-                              control={form.control}
-                              name="job_listing_url"
-                              defaultValue={resume.job_listing_url || ""}
-                              render={({ field }) => (
-                                <FormItem>
-                                  <FormLabel>Job Listing URL</FormLabel>
-                                  <FormControl>
-                                    <Input {...field} type="url" placeholder="https://..." />
-                                  </FormControl>
-                                  <FormDescription>
-                                    The original job posting URL for reference
-                                  </FormDescription>
-                                  <FormMessage />
-                                </FormItem>
-                              )}
-                            />
-                            <div className="flex justify-end gap-2">
-                              <Button type="submit">Save Changes</Button>
-                            </div>
-                          </form>
-                        </Form>
-                      </DialogContent>
-                    </Dialog>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => onArchive(resume.id)}
-                      className="cursor-pointer"
-                    >
-                      <Archive className="mr-2 h-4 w-4" />
-                      Archive
-                    </DropdownMenuItem>
-                    <DropdownMenuItem
-                      onClick={() => onDelete(resume.id)}
-                      className="cursor-pointer text-destructive"
-                    >
-                      <Trash2 className="mr-2 h-4 w-4" />
-                      Delete
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </TableCell>
+              <TableCell>{row.actions}</TableCell>
             </TableRow>
           ))
         )}
