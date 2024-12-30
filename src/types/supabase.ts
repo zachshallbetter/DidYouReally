@@ -20,8 +20,19 @@ export interface Database {
           version: number
           created_at: string
           updated_at: string
+          archived_at: string | null
           original_content: string | null
           metadata: Json
+          layout_preferences: Json
+          tags: string[]
+          company_type: string | null
+          job_level: string | null
+          application_status: 'draft' | 'sent' | 'interviewing' | 'rejected' | 'accepted' | null
+          last_accessed_at: string | null
+          last_modified_by: string | null
+          view_count: number
+          unique_locations: number
+          avg_view_duration: number
         }
         Insert: {
           id?: string
@@ -33,8 +44,19 @@ export interface Database {
           version?: number
           created_at?: string
           updated_at?: string
+          archived_at?: string | null
           original_content?: string | null
           metadata?: Json
+          layout_preferences?: Json
+          tags?: string[]
+          company_type?: string | null
+          job_level?: string | null
+          application_status?: 'draft' | 'sent' | 'interviewing' | 'rejected' | 'accepted' | null
+          last_accessed_at?: string | null
+          last_modified_by?: string | null
+          view_count?: number
+          unique_locations?: number
+          avg_view_duration?: number
         }
         Update: {
           id?: string
@@ -46,8 +68,19 @@ export interface Database {
           version?: number
           created_at?: string
           updated_at?: string
+          archived_at?: string | null
           original_content?: string | null
           metadata?: Json
+          layout_preferences?: Json
+          tags?: string[]
+          company_type?: string | null
+          job_level?: string | null
+          application_status?: 'draft' | 'sent' | 'interviewing' | 'rejected' | 'accepted' | null
+          last_accessed_at?: string | null
+          last_modified_by?: string | null
+          view_count?: number
+          unique_locations?: number
+          avg_view_duration?: number
         }
       }
       tracking_logs: {
@@ -62,171 +95,129 @@ export interface Database {
           view_duration: number | null
           metadata: Json
           is_bot: boolean
+          device_type: 'desktop' | 'mobile' | 'tablet' | 'unknown'
+          browser: string | null
+          os: string | null
+          referrer: string | null
           retention_expires_at: string
-        }
-      }
-      error_logs: {
-        Row: {
-          id: string
-          endpoint: string
-          error_message: string
-          stack_trace: string | null
-          timestamp: string
-          severity: string
-          resolved: boolean
-          context: Json
-          retention_expires_at: string
+          engagement_metrics: Json
         }
         Insert: {
           id?: string
-          endpoint: string
-          error_message: string
-          stack_trace?: string | null
+          resume_id: string
+          ip_address: string
+          user_agent: string
           timestamp?: string
-          severity?: string
-          resolved?: boolean
-          context?: Json
+          country?: string | null
+          city?: string | null
+          view_duration?: number | null
+          metadata?: Json
+          is_bot?: boolean
+          device_type?: 'desktop' | 'mobile' | 'tablet' | 'unknown'
+          browser?: string | null
+          os?: string | null
+          referrer?: string | null
           retention_expires_at?: string
+          engagement_metrics?: Json
         }
         Update: {
           id?: string
-          endpoint?: string
-          error_message?: string
-          stack_trace?: string | null
+          resume_id?: string
+          ip_address?: string
+          user_agent?: string
           timestamp?: string
-          severity?: string
-          resolved?: boolean
-          context?: Json
+          country?: string | null
+          city?: string | null
+          view_duration?: number | null
+          metadata?: Json
+          is_bot?: boolean
+          device_type?: 'desktop' | 'mobile' | 'tablet' | 'unknown'
+          browser?: string | null
+          os?: string | null
+          referrer?: string | null
           retention_expires_at?: string
+          engagement_metrics?: Json
+        }
+      }
+      user_preferences: {
+        Row: {
+          id: string
+          user_id: string
+          theme: 'light' | 'dark' | 'system'
+          notifications_enabled: boolean
+          email_notifications: boolean
+          retention_period: number
+          dashboard_layout: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          theme?: 'light' | 'dark' | 'system'
+          notifications_enabled?: boolean
+          email_notifications?: boolean
+          retention_period?: number
+          dashboard_layout?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          theme?: 'light' | 'dark' | 'system'
+          notifications_enabled?: boolean
+          email_notifications?: boolean
+          retention_period?: number
+          dashboard_layout?: Json
+          created_at?: string
+          updated_at?: string
         }
       }
       application_tracking: {
         Row: {
           id: string
-          resume_group: string
-          company_type: string
-          job_level: string
-          application_date: string
-          response_received: boolean
-          response_date: string | null
-          response_type: string | null
-          days_to_response: number | null
-          metadata: Json
-          notes: string | null
-        }
-        Insert: {
-          id?: string
-          resume_group: string
-          company_type: string
-          job_level: string
-          application_date?: string
-          response_received?: boolean
-          response_date?: string | null
-          response_type?: string | null
-          days_to_response?: number | null
-          metadata?: Json
-          notes?: string | null
-        }
-        Update: {
-          id?: string
-          resume_group?: string
-          company_type?: string
-          job_level?: string
-          application_date?: string
-          response_received?: boolean
-          response_date?: string | null
-          response_type?: string | null
-          days_to_response?: number | null
-          metadata?: Json
-          notes?: string | null
-        }
-      }
-      recruiter_feedback: {
-        Row: {
-          id: string
-          application_id: string
-          feedback_type: string
-          feedback_text: string
-          mentioned_keywords: string[]
-          sentiment: string
-          created_at: string
-          metadata: Json
-          is_anonymous: boolean
-        }
-        Insert: {
-          id?: string
-          application_id: string
-          feedback_type: string
-          feedback_text: string
-          mentioned_keywords: string[]
-          sentiment: string
-          created_at?: string
-          metadata?: Json
-          is_anonymous?: boolean
-        }
-        Update: {
-          id?: string
-          application_id?: string
-          feedback_type?: string
-          feedback_text?: string
-          mentioned_keywords?: string[]
-          sentiment?: string
-          created_at?: string
-          metadata?: Json
-          is_anonymous?: boolean
-        }
-      }
-    }
-    Views: {
-      resume_view_stats: {
-        Row: {
           resume_id: string
-          job_title: string
-          company: string
-          status: string
-          view_count: number
-          unique_viewers: number
-          last_viewed: string | null
-          first_viewed: string | null
-          avg_view_duration: string | null
-          viewer_countries: string[]
+          company_name: string
+          position: string
+          application_date: string
+          status: 'applied' | 'screening' | 'interviewing' | 'offered' | 'rejected' | 'accepted' | 'withdrawn'
+          last_interaction: string | null
+          next_steps: string | null
+          notes: string | null
+          metadata: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          resume_id: string
+          company_name: string
+          position: string
+          application_date?: string
+          status?: 'applied' | 'screening' | 'interviewing' | 'offered' | 'rejected' | 'accepted' | 'withdrawn'
+          last_interaction?: string | null
+          next_steps?: string | null
+          notes?: string | null
+          metadata?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          resume_id?: string
+          company_name?: string
+          position?: string
+          application_date?: string
+          status?: 'applied' | 'screening' | 'interviewing' | 'offered' | 'rejected' | 'accepted' | 'withdrawn'
+          last_interaction?: string | null
+          next_steps?: string | null
+          notes?: string | null
+          metadata?: Json
+          created_at?: string
+          updated_at?: string
         }
       }
-      application_success_stats: {
-        Row: {
-          resume_group: string
-          company_type: string
-          job_level: string
-          total_applications: number
-          response_rate: number
-          avg_response_time: number | null
-          interview_rate: number
-          offer_rate: number
-        }
-      }
-      feedback_analysis_stats: {
-        Row: {
-          resume_group: string
-          sentiment: string
-          feedback_count: number
-          common_keywords: string[][]
-          avg_feedback_length: number
-        }
-      }
-    }
-    Functions: {
-      update_updated_at_column: {
-        Args: Record<string, never>
-        Returns: unknown
-      }
-    }
-    Enums: {
-      resume_status: 'active' | 'archived' | 'deleted'
-      company_type: 'startup' | 'smb' | 'enterprise' | 'agency' | 'other'
-      job_level: 'entry' | 'mid' | 'senior' | 'lead' | 'manager' | 'director' | 'executive'
-      response_type: 'screen' | 'interview' | 'offer' | 'rejection'
-      feedback_type: 'interview_feedback' | 'screening_feedback' | 'general_feedback'
-      sentiment_type: 'positive' | 'neutral' | 'negative'
     }
   }
 } 

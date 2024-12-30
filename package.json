@@ -8,7 +8,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "migration:generate": "tsx scripts/generate-migration.ts",
+    "migration:generate:alter": "tsx scripts/generate-migration.ts alter"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",
