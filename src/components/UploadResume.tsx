@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -27,6 +26,12 @@ import * as z from "zod";
 import { toast } from "@/hooks/use-toast";
 import { Loader2, Upload } from "lucide-react";
 
+interface Resume {
+  id: string;
+  job_title: string;
+  version: number;
+}
+
 const formSchema = z.object({
   jobTitle: z.string().min(2, {
     message: "Job title must be at least 2 characters.",
@@ -38,7 +43,7 @@ const formSchema = z.object({
     message: "Please enter a valid URL.",
   }).optional().or(z.literal("")),
   resumeVersion: z.string(),
-  file: z.any().optional(),
+  file: z.any().optional(), // Changed from FileList to fix SSR issue
 });
 
 interface UploadResumeProps {
@@ -47,8 +52,8 @@ interface UploadResumeProps {
 
 export function UploadResume({ onUploadComplete }: UploadResumeProps) {
   const [isUploading, setIsUploading] = useState(false);
-  const [companies, setCompanies] = useState<string[]>([]);
-  const [existingResumes, setExistingResumes] = useState<any[]>([]);
+  const [companies] = useState<string[]>([]);
+  const [existingResumes] = useState<Resume[]>([]);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -221,7 +226,7 @@ export function UploadResume({ onUploadComplete }: UploadResumeProps) {
           <FormField
             control={form.control}
             name="file"
-            render={({ field: { onChange, value, ...field } }) => (
+            render={({ field: { onChange, ...field } }) => (
               <FormItem>
                 <FormLabel>Resume File</FormLabel>
                 <FormControl>

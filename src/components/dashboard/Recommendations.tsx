@@ -1,14 +1,25 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, BarChart, Bar } from "recharts";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, subDays, startOfDay, startOfWeek, startOfMonth, isWithinInterval, addDays } from "date-fns";
 import { PrismaClient } from "@prisma/client";
-import { Users, Eye, MapPin, Clock } from "lucide-react";
+import { useState, type ReactNode, useEffect } from "react";
+import { TrendingUp, AlertTriangle, Lightbulb, BarChart as BarChartIcon } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 
 type Resume = NonNullable<Awaited<ReturnType<PrismaClient['resume']['findFirst']>>>;
+type TrackingLog = NonNullable<Awaited<ReturnType<PrismaClient['trackingLog']['findFirst']>>>;
+type ResumeEvent = NonNullable<Awaited<ReturnType<PrismaClient['resumeEvent']['findFirst']>>>;
+
+type EventType = 'view' | 'send' | 'open' | 'click' | 'download';
 
 interface ChartData {
   date: string;
-  [key: string]: string | number;
+  view: number;
+  send: number;
+  open: number;
+  click: number;
+  download: number;
 }
 
 interface DeviceData {
@@ -21,61 +32,135 @@ interface LocationData {
   count: number;
 }
 
-interface TrackingLog {
-  createdAt: Date;
-  deviceType: 'desktop' | 'mobile' | 'tablet' | 'unknown';
-  location: string | null;
-}
-
-interface ResumeEvent {
-  type: 'view' | 'send' | 'open' | 'click' | 'download';
-  createdAt: Date;
+interface TimeRange {
+  start: Date;
+  end: Date;
 }
 
 interface RecommendationsProps {
-  resumes: Resume[];
-  logs: TrackingLog[];
-  events: ResumeEvent[];
+  resumes?: Resume[];
+  logs?: TrackingLog[];
+  events?: ResumeEvent[];
 }
 
-function getChartData(events: ResumeEvent[]): ChartData[] {
-  const groupedData = events.reduce((acc: { [key: string]: ChartData }, event) => {
-    const date = format(event.createdAt, 'MM/dd/yyyy');
-    if (!acc[date]) {
-      acc[date] = {
-        date,
-        view: 0,
-        send: 0,
-        open: 0,
-        click: 0,
-        download: 0
+function getTimeRange(range: string): TimeRange {
+  const now = new Date();
+  switch (range) {
+    case 'today':
+      return {
+        start: startOfDay(now),
+        end: now
       };
+    case 'week':
+      return {
+        start: startOfWeek(now),
+        end: now
+      };
+    case 'month':
+      return {
+        start: startOfMonth(now),
+        end: now
+      };
+    case 'all':
+    default:
+      return {
+        start: subDays(now, 365),
+        end: now
+      };
+  }
+}
+
+function getChartData(events: ResumeEvent[] | undefined, timeRange: TimeRange): ChartData[] {
+  if (!events || !Array.isArray(events)) return [];
+
+  console.log('Processing events:', events.length);
+  console.log('Time range:', timeRange);
+
+  // Create a map to store event counts by date and type
+  const eventsByDate = new Map<string, { [key in EventType]: number }>();
+
+  // Initialize dates in the range
+  let currentDate = startOfDay(timeRange.start);
+  const endDate = startOfDay(timeRange.end);
+  
+  while (currentDate <= endDate) {
+    const dateStr = format(currentDate, 'yyyy-MM-dd');
+    eventsByDate.set(dateStr, {
+      view: 0,
+      send: 0,
+      open: 0,
+      click: 0,
+      download: 0
+    });
+    currentDate = addDays(currentDate, 1);
+  }
+
+  // Aggregate events by date
+  events.forEach(event => {
+    if (!event.createdAt || !event.type) {
+      console.log('Skipping invalid event:', event);
+      return;
     }
-    acc[date][event.type] = (acc[date][event.type] as number || 0) + 1;
-    return acc;
-  }, {});
 
-  return Object.values(groupedData).sort((a, b) => {
-    return parseISO(a.date).getTime() - parseISO(b.date).getTime();
+    const eventDate = startOfDay(new Date(event.createdAt));
+    const dateStr = format(eventDate, 'yyyy-MM-dd');
+    console.log('Processing event:', { date: dateStr, type: event.type });
+
+    if (isWithinInterval(eventDate, { start: timeRange.start, end: endDate })) {
+      const dateEvents = eventsByDate.get(dateStr);
+      if (dateEvents && event.type in dateEvents) {
+        dateEvents[event.type as EventType]++;
+        console.log('Updated counts for', dateStr, ':', dateEvents);
+      } else {
+        console.log('No matching date entry for:', dateStr);
+      }
+    } else {
+      console.log('Event outside time range:', dateStr);
+    }
   });
+
+  // Convert map to array and sort by date
+  const result = Array.from(eventsByDate.entries())
+    .map(([date, counts]) => ({
+      date,
+      ...counts
+    }))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+  console.log('Final chart data:', result);
+  return result;
 }
 
-function getDeviceData(logs: TrackingLog[]): DeviceData[] {
-  const devices = logs.reduce((acc: { [key: string]: number }, log) => {
-    const device = log.deviceType.toLowerCase();
-    acc[device] = (acc[device] || 0) + 1;
+function getDeviceData(logs: TrackingLog[] | undefined, timeRange: TimeRange): DeviceData[] {
+  if (!logs || !Array.isArray(logs)) return [];
+  
+  const filteredLogs = logs.filter(log => 
+    log.createdAt && isWithinInterval(new Date(log.createdAt), timeRange)
+  );
+  
+  const devices = filteredLogs.reduce((acc: { [key: string]: number }, log) => {
+    if (!log?.deviceType) return acc;
+    acc[log.deviceType] = (acc[log.deviceType] || 0) + 1;
     return acc;
   }, {});
 
-  return Object.entries(devices).map(([device, count]) => ({
-    device,
-    count
-  }));
+  return Object.entries(devices)
+    .map(([device, count]) => ({
+      device,
+      count
+    }))
+    .sort((a, b) => b.count - a.count);
 }
 
-function getLocationData(logs: TrackingLog[]): LocationData[] {
-  const locations = logs.reduce((acc: { [key: string]: number }, log) => {
-    const location = log.location || 'Unknown';
+function getLocationData(logs: TrackingLog[] | undefined, timeRange: TimeRange): LocationData[] {
+  if (!logs || !Array.isArray(logs)) return [];
+  
+  const filteredLogs = logs.filter(log => 
+    log.createdAt && isWithinInterval(new Date(log.createdAt), timeRange)
+  );
+  
+  const locations = filteredLogs.reduce((acc: { [key: string]: number }, log) => {
+    const location = log?.location || 'Unknown';
     acc[location] = (acc[location] || 0) + 1;
     return acc;
   }, {});
@@ -89,142 +174,136 @@ function getLocationData(logs: TrackingLog[]): LocationData[] {
     .slice(0, 5);
 }
 
-function getLatestActivity(events: ResumeEvent[]): string {
-  if (events.length === 0) return 'N/A';
-  
-  const latestEvent = events.reduce((latest, current) => {
-    return current.createdAt > latest.createdAt ? current : latest;
-  });
-
-  return format(latestEvent.createdAt, 'MM/dd/yyyy');
+function ChartSection({ title, description, children }: { title: string; description: string; children: ReactNode }) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{title}</CardTitle>
+        <CardDescription>{description}</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="h-[300px]">
+          {children}
+        </div>
+      </CardContent>
+    </Card>
+  );
 }
 
-export function Recommendations({ resumes, logs, events }: RecommendationsProps) {
-  const chartData = getChartData(events);
-  const deviceData = getDeviceData(logs);
-  const locationData = getLocationData(logs);
-  const uniqueLocations = new Set(logs.map(log => log.location)).size;
-  const totalViews = events.filter(event => event.type === 'view').length;
-  const latestActivity = getLatestActivity(events);
+export function Recommendations({ resumes = [], logs = [], events = [] }: RecommendationsProps) {
+  const [timeRange, setTimeRange] = useState('week');
+  const range = getTimeRange(timeRange);
+  
+  const chartData = getChartData(events, range);
+  const deviceData = getDeviceData(logs, range);
+  const locationData = getLocationData(logs, range);
 
   return (
-    <div className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-4">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Resumes</p>
-                <h3 className="text-2xl font-bold">{resumes.length}</h3>
-                <p className="text-xs text-muted-foreground">Active resumes being tracked</p>
-              </div>
+    <div className="space-y-8">
+      <div>
+        <h3 className="text-lg font-medium mb-4">Recommendations</h3>
+        <div className="space-y-6">
+          <div>
+            <h4 className="text-sm font-medium mb-4 flex items-center gap-2">
+              <TrendingUp className="h-4 w-4" />
+              Performance Insights
+            </h4>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {resumes.map(resume => {
+                const resumeLogs = logs.filter(log => log.resumeId === resume.id);
+                const viewCount = resumeLogs.length;
+                const uniqueLocations = new Set(resumeLogs.map(log => log.location).filter(Boolean)).size;
+                
+                return (
+                  <Card key={resume.id} className="p-4">
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-medium">{resume.jobTitle}</span>
+                        <Badge variant="outline">{viewCount} views</Badge>
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {uniqueLocations} unique locations
+                      </div>
+                      {viewCount === 0 && (
+                        <div className="flex items-center gap-2 text-xs text-amber-500">
+                          <AlertTriangle className="h-3 w-3" />
+                          No views yet - consider sharing more widely
+                        </div>
+                      )}
+                      {viewCount > 0 && viewCount < 5 && (
+                        <div className="flex items-center gap-2 text-xs text-blue-500">
+                          <Lightbulb className="h-3 w-3" />
+                          Getting traction - optimize for more visibility
+                        </div>
+                      )}
+                      {viewCount >= 5 && (
+                        <div className="flex items-center gap-2 text-xs text-green-500">
+                          <TrendingUp className="h-3 w-3" />
+                          Good engagement - maintain momentum
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                );
+              })}
             </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-4">
-              <Eye className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Views</p>
-                <h3 className="text-2xl font-bold">{totalViews}</h3>
-                <p className="text-xs text-muted-foreground">Resume views tracked</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-4">
-              <MapPin className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Unique Locations</p>
-                <h3 className="text-2xl font-bold">{uniqueLocations}</h3>
-                <p className="text-xs text-muted-foreground">Different viewing locations</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="p-6">
-            <div className="flex items-center space-x-4">
-              <Clock className="h-4 w-4 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Latest Activity</p>
-                <h3 className="text-2xl font-bold">{latestActivity}</h3>
-                <p className="text-xs text-muted-foreground">Most recent view</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card className="col-span-2">
-          <CardHeader>
-            <CardTitle>Engagement Over Time</CardTitle>
-            <CardDescription>View trends in resume interactions</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Line type="monotone" dataKey="view" stroke="#22c55e" name="View" />
-                  <Line type="monotone" dataKey="send" stroke="#f97316" name="Send" />
-                  <Line type="monotone" dataKey="open" stroke="#eab308" name="Open" />
-                  <Line type="monotone" dataKey="click" stroke="#06b6d4" name="Click" />
-                  <Line type="monotone" dataKey="download" stroke="#a855f7" name="Download" />
-                </LineChart>
-              </ResponsiveContainer>
+          <div>
+            <h4 className="text-sm font-medium mb-4">Recommended Actions</h4>
+            <div className="space-y-3">
+              {resumes.some(r => !r.jobListingUrl) && (
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    Some resumes are missing job listing URLs. Adding these can help track application context.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {logs.some(log => log.isBot) && (
+                <Alert>
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    Bot traffic detected. Consider implementing additional tracking protection.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {resumes.some(r => {
+                const resumeLogs = logs.filter(log => log.resumeId === r.id);
+                return resumeLogs.length === 0;
+              }) && (
+                <Alert>
+                  <Lightbulb className="h-4 w-4" />
+                  <AlertDescription>
+                    Some resumes have no views. Consider sharing them on relevant platforms or with recruiters.
+                  </AlertDescription>
+                </Alert>
+              )}
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Device Distribution</CardTitle>
-            <CardDescription>Breakdown of viewing devices</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[200px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={deviceData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
-                  <YAxis dataKey="device" type="category" />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="#3b82f6" />
-                </BarChart>
-              </ResponsiveContainer>
+          <div>
+            <h4 className="text-sm font-medium mb-4">Best Practices</h4>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Card className="p-4">
+                <h5 className="text-sm font-medium mb-2">Tracking Optimization</h5>
+                <ul className="text-sm text-muted-foreground space-y-2">
+                  <li>• Use unique versions for different job applications</li>
+                  <li>• Add job listing URLs for context</li>
+                  <li>• Monitor view durations for engagement</li>
+                </ul>
+              </Card>
+              <Card className="p-4">
+                <h5 className="text-sm font-medium mb-2">Distribution Strategy</h5>
+                <ul className="text-sm text-muted-foreground space-y-2">
+                  <li>• Share tracking links in applications</li>
+                  <li>• Use different versions for different roles</li>
+                  <li>• Track which platforms drive most views</li>
+                </ul>
+              </Card>
             </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Top Viewing Locations</CardTitle>
-            <CardDescription>Most active regions</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[200px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={locationData} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis type="number" />
-                  <YAxis dataKey="location" type="category" width={120} />
-                  <Tooltip />
-                  <Bar dataKey="count" fill="#3b82f6" />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   );

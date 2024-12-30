@@ -1,5 +1,5 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Users, Eye, MapPin, Clock } from "lucide-react";
+import { Users, Eye, MapPin, Clock, TrendingUp, AlertTriangle, Lightbulb, BarChart } from "lucide-react";
 import { format } from 'date-fns';
 
 interface StatsOverviewProps {
@@ -18,7 +18,10 @@ export function StatsOverview({ totalResumes, totalViews, uniqueLocations, lates
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Resumes</CardTitle>
-          <Users className="h-4 w-4 text-muted-foreground" />
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-muted-foreground" />
+            <TrendingUp className="h-4 w-4 text-green-500" />
+          </div>
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{totalResumes}</div>
@@ -28,7 +31,10 @@ export function StatsOverview({ totalResumes, totalViews, uniqueLocations, lates
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Views</CardTitle>
-          <Eye className="h-4 w-4 text-muted-foreground" />
+          <div className="flex items-center gap-2">
+            <Eye className="h-4 w-4 text-muted-foreground" />
+            <BarChart className="h-4 w-4 text-blue-500" />
+          </div>
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{totalViews}</div>
@@ -38,7 +44,10 @@ export function StatsOverview({ totalResumes, totalViews, uniqueLocations, lates
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Unique Locations</CardTitle>
-          <MapPin className="h-4 w-4 text-muted-foreground" />
+          <div className="flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-muted-foreground" />
+            <Lightbulb className="h-4 w-4 text-yellow-500" />
+          </div>
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{uniqueLocations}</div>
@@ -48,7 +57,10 @@ export function StatsOverview({ totalResumes, totalViews, uniqueLocations, lates
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Latest Activity</CardTitle>
-          <Clock className="h-4 w-4 text-muted-foreground" />
+          <div className="flex items-center gap-2">
+            <Clock className="h-4 w-4 text-muted-foreground" />
+            <AlertTriangle className="h-4 w-4 text-orange-500" />
+          </div>
         </CardHeader>
         <CardContent>
           <div className="text-2xl font-bold">{formattedDate}</div>
@@ -57,4 +69,4 @@ export function StatsOverview({ totalResumes, totalViews, uniqueLocations, lates
       </Card>
     </div>
   );
-} 
+}

@@ -111,9 +111,9 @@ export default function DashboardPage() {
 
       <StatsOverview
         totalResumes={data.resumes.length}
-        totalViews={data.logs.filter(log => log.type === 'view').length}
-        uniqueLocations={new Set(data.logs.map(log => log.location)).size}
-        latestActivity={data.logs[0]?.timestamp}
+        totalViews={data.logs.length}
+        uniqueLocations={new Set(data.logs.map(log => log.location).filter(Boolean)).size}
+        latestActivity={data.logs[0]?.createdAt}
       />
       
       <div className="grid gap-4">

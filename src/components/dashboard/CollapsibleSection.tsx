@@ -43,7 +43,7 @@ export function CollapsibleSection({
               </Button>
             )}
             <Button
-              variant="ghost"
+              variant={isExpanded ? "secondary" : "ghost"}
               size="icon"
               onClick={onToggle}
               className="h-8 w-8"
@@ -61,4 +61,4 @@ export function CollapsibleSection({
       {isExpanded && <CardContent>{children}</CardContent>}
     </Card>
   );
-} 
+}

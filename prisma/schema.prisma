@@ -67,6 +67,7 @@ model Resume {
   company          Company              @relation(fields: [companyId], references: [id], onDelete: Restrict)
   companyId        String               @map("company_id")
   trackingUrl      String               @unique @map("tracking_url")
+  trackingId       String               @unique @map("tracking_id")
   jobListingUrl    String?              @map("job_listing_url")
   status           ResumeStatus         @default(active)
   version          Int                  @default(1)
