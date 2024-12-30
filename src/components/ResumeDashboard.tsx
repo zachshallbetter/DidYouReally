@@ -247,6 +247,104 @@ export function ResumeDashboard() {
         </Card>
       </div>
 
+      {/* Recommendations */}
+      <CollapsibleCard
+        title="Recommendations"
+        description="Insights and suggestions to improve your resume performance"
+        defaultOpen={true}
+        trigger={
+          <div className="flex items-center gap-2">
+            {resumes.some(r => !r.job_listing_url || logs.filter(log => log.resume_id === r.id).length === 0) && (
+              <Badge variant="destructive" className="h-5 w-5 rounded-full p-0 flex items-center justify-center">
+                {resumes.filter(r => !r.job_listing_url || logs.filter(log => log.resume_id === r.id).length === 0).length}
+              </Badge>
+            )}
+            <Button variant="outline" size="icon">
+              <Lightbulb className="h-4 w-4" />
+              <span className="sr-only">View recommendations</span>
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-6">
+          {/* Quick Stats (Visible when collapsed) */}
+          <div className="grid gap-4 sm:grid-cols-3">
+            <Card className="p-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-amber-500">
+                  <AlertTriangle className="h-4 w-4" />
+                  <h5 className="text-sm font-medium">Attention Needed</h5>
+                </div>
+                <div className="text-2xl font-bold">
+                  {resumes.filter(r => !r.job_listing_url || logs.filter(log => log.resume_id === r.id).length === 0).length}
+                </div>
+                <p className="text-xs text-muted-foreground">Resumes needing attention</p>
+              </div>
+            </Card>
+            <Card className="p-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-blue-500">
+                  <TrendingUp className="h-4 w-4" />
+                  <h5 className="text-sm font-medium">Active Performance</h5>
+                </div>
+                <div className="text-2xl font-bold">
+                  {resumes.filter(r => logs.filter(log => log.resume_id === r.id).length > 0).length}
+                </div>
+                <p className="text-xs text-muted-foreground">Resumes with active views</p>
+              </div>
+            </Card>
+            <Card className="p-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-green-500">
+                  <Lightbulb className="h-4 w-4" />
+                  <h5 className="text-sm font-medium">High Performers</h5>
+                </div>
+                <div className="text-2xl font-bold">
+                  {resumes.filter(r => logs.filter(log => log.resume_id === r.id).length >= 5).length}
+                </div>
+                <p className="text-xs text-muted-foreground">Resumes with good engagement</p>
+              </div>
+            </Card>
+          </div>
+
+          {/* Action Items */}
+          <div>
+            <h4 className="text-sm font-medium mb-4">Recommended Actions</h4>
+            <div className="space-y-3">
+              {resumes.some(r => !r.job_listing_url) && (
+                <Alert variant="destructive" className="border-amber-500/50 bg-amber-500/10 text-amber-500">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    Some resumes are missing job listing URLs. Adding these can help track application context.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {logs.some(log => log.is_bot) && (
+                <Alert variant="destructive" className="border-blue-500/50 bg-blue-500/10 text-blue-500">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertDescription>
+                    Bot traffic detected. Consider implementing additional tracking protection.
+                  </AlertDescription>
+                </Alert>
+              )}
+              {resumes.some(r => {
+                const resumeLogs = logs.filter(log => log.resume_id === r.id);
+                return resumeLogs.length === 0;
+              }) && (
+                <Alert className="border-green-500/50 bg-green-500/10 text-green-500">
+                  <Lightbulb className="h-4 w-4" />
+                  <AlertDescription>
+                    Some resumes have no views. Consider sharing them on relevant platforms or with recruiters.
+                  </AlertDescription>
+                </Alert>
+              )}
+            </div>
+          </div>
+
+          {/* Rest of the recommendations content ... */}
+        </div>
+      </CollapsibleCard>
+
       <div className="grid gap-4 mt-8">
         {/* Add New Resume */}
         <CollapsibleCard
@@ -511,124 +609,6 @@ export function ResumeDashboard() {
               <h4 className="text-sm font-medium mb-2">Data Management</h4>
               <div className="space-y-2">
                 {/* Add data management controls */}
-              </div>
-            </div>
-          </div>
-        </CollapsibleCard>
-
-        {/* Recommendations */}
-        <CollapsibleCard
-          title="Recommendations"
-          description="Insights and suggestions to improve your resume performance"
-          trigger={
-            <Button variant="outline" size="icon">
-              <Lightbulb className="h-4 w-4" />
-              <span className="sr-only">View recommendations</span>
-            </Button>
-          }
-        >
-          <div className="space-y-6">
-            {/* Performance Insights */}
-            <div>
-              <h4 className="text-sm font-medium mb-4 flex items-center gap-2">
-                <TrendingUp className="h-4 w-4" />
-                Performance Insights
-              </h4>
-              <div className="grid gap-4 sm:grid-cols-2">
-                {resumes.map(resume => {
-                  const resumeLogs = logs.filter(log => log.resume_id === resume.id);
-                  const viewCount = resumeLogs.length;
-                  const uniqueLocations = new Set(resumeLogs.map(log => `${log.city},${log.country}`).filter(Boolean)).size;
-                  
-                  return (
-                    <Card key={resume.id} className="p-4">
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium">{resume.job_title}</span>
-                          <Badge variant="outline">{viewCount} views</Badge>
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {uniqueLocations} unique locations
-                        </div>
-                        {viewCount === 0 && (
-                          <div className="flex items-center gap-2 text-xs text-amber-500">
-                            <AlertTriangle className="h-3 w-3" />
-                            No views yet - consider sharing more widely
-                          </div>
-                        )}
-                        {viewCount > 0 && viewCount < 5 && (
-                          <div className="flex items-center gap-2 text-xs text-blue-500">
-                            <Lightbulb className="h-3 w-3" />
-                            Getting traction - optimize for more visibility
-                          </div>
-                        )}
-                        {viewCount >= 5 && (
-                          <div className="flex items-center gap-2 text-xs text-green-500">
-                            <TrendingUp className="h-3 w-3" />
-                            Good engagement - maintain momentum
-                          </div>
-                        )}
-                      </div>
-                    </Card>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Action Items */}
-            <div>
-              <h4 className="text-sm font-medium mb-4">Recommended Actions</h4>
-              <div className="space-y-3">
-                {resumes.some(r => !r.job_listing_url) && (
-                  <Alert>
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>
-                      Some resumes are missing job listing URLs. Adding these can help track application context.
-                    </AlertDescription>
-                  </Alert>
-                )}
-                {logs.some(log => log.is_bot) && (
-                  <Alert>
-                    <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription>
-                      Bot traffic detected. Consider implementing additional tracking protection.
-                    </AlertDescription>
-                  </Alert>
-                )}
-                {resumes.some(r => {
-                  const resumeLogs = logs.filter(log => log.resume_id === r.id);
-                  return resumeLogs.length === 0;
-                }) && (
-                  <Alert>
-                    <Lightbulb className="h-4 w-4" />
-                    <AlertDescription>
-                      Some resumes have no views. Consider sharing them on relevant platforms or with recruiters.
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </div>
-            </div>
-
-            {/* Best Practices */}
-            <div>
-              <h4 className="text-sm font-medium mb-4">Best Practices</h4>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Card className="p-4">
-                  <h5 className="text-sm font-medium mb-2">Tracking Optimization</h5>
-                  <ul className="text-sm text-muted-foreground space-y-2">
-                    <li>• Use unique versions for different job applications</li>
-                    <li>• Add job listing URLs for context</li>
-                    <li>• Monitor view durations for engagement</li>
-                  </ul>
-                </Card>
-                <Card className="p-4">
-                  <h5 className="text-sm font-medium mb-2">Distribution Strategy</h5>
-                  <ul className="text-sm text-muted-foreground space-y-2">
-                    <li>• Share tracking links in applications</li>
-                    <li>• Use different versions for different roles</li>
-                    <li>• Track which platforms drive most views</li>
-                  </ul>
-                </Card>
               </div>
             </div>
           </div>

@@ -15,6 +15,7 @@ export interface Database {
           job_title: string
           company: string
           tracking_url: string
+          job_listing_url: string | null
           status: 'active' | 'archived' | 'deleted'
           version: number
           created_at: string
@@ -27,6 +28,7 @@ export interface Database {
           job_title: string
           company: string
           tracking_url: string
+          job_listing_url?: string | null
           status?: 'active' | 'archived' | 'deleted'
           version?: number
           created_at?: string
@@ -39,6 +41,7 @@ export interface Database {
           job_title?: string
           company?: string
           tracking_url?: string
+          job_listing_url?: string | null
           status?: 'active' | 'archived' | 'deleted'
           version?: number
           created_at?: string
@@ -52,40 +55,14 @@ export interface Database {
           id: string
           resume_id: string
           ip_address: string
-          user_agent: string | null
+          user_agent: string
+          timestamp: string
           country: string | null
           city: string | null
-          timestamp: string
-          view_duration: string | null
+          view_duration: number | null
           metadata: Json
           is_bot: boolean
           retention_expires_at: string
-        }
-        Insert: {
-          id?: string
-          resume_id: string
-          ip_address: string
-          user_agent?: string | null
-          country?: string | null
-          city?: string | null
-          timestamp?: string
-          view_duration?: string | null
-          metadata?: Json
-          is_bot?: boolean
-          retention_expires_at?: string
-        }
-        Update: {
-          id?: string
-          resume_id?: string
-          ip_address?: string
-          user_agent?: string | null
-          country?: string | null
-          city?: string | null
-          timestamp?: string
-          view_duration?: string | null
-          metadata?: Json
-          is_bot?: boolean
-          retention_expires_at?: string
         }
       }
       error_logs: {
