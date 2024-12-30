@@ -17,6 +17,23 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { Clock, Users, Eye, MapPin } from "lucide-react";
 import type { Database } from '@/types/supabase';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Archive,
+  MoreHorizontal,
+  Trash2,
+  Edit,
+  Link as LinkIcon,
+  Copy,
+} from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
 
 type Resume = Database['public']['Tables']['resumes']['Row'];
 type TrackingLog = Database['public']['Tables']['tracking_logs']['Row'];
@@ -80,6 +97,65 @@ export function ResumeDashboard() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleArchive(resumeId: string) {
+    try {
+      const { error } = await supabase
+        .from('resumes')
+        .update({ status: 'archived' })
+        .eq('id', resumeId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Resume archived",
+        description: "The resume has been moved to archives.",
+      });
+      
+      fetchData();
+    } catch (error) {
+      console.error('Error archiving resume:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to archive resume. Please try again.",
+      });
+    }
+  }
+
+  async function handleDelete(resumeId: string) {
+    try {
+      const { error } = await supabase
+        .from('resumes')
+        .delete()
+        .eq('id', resumeId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Resume deleted",
+        description: "The resume has been permanently deleted.",
+      });
+      
+      fetchData();
+    } catch (error) {
+      console.error('Error deleting resume:', error);
+      toast({
+        variant: "destructive",
+        title: "Error",
+        description: "Failed to delete resume. Please try again.",
+      });
+    }
+  }
+
+  function copyToClipboard(text: string) {
+    navigator.clipboard.writeText(text).then(() => {
+      toast({
+        title: "Copied to clipboard",
+        description: "The tracking URL has been copied to your clipboard.",
+      });
+    });
   }
 
   if (loading) {
@@ -195,6 +271,7 @@ export function ResumeDashboard() {
                     <TableHead>Version</TableHead>
                     <TableHead>Created</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -210,7 +287,15 @@ export function ResumeDashboard() {
                         <TableCell className="font-medium">{resume.job_title}</TableCell>
                         <TableCell>{resume.company}</TableCell>
                         <TableCell className="font-mono text-xs">
-                          {resume.tracking_url}
+                          <div className="flex items-center gap-2">
+                            <span className="truncate max-w-[200px]">{resume.tracking_url}</span>
+                            <button
+                              onClick={() => copyToClipboard(resume.tracking_url)}
+                              className="p-1 hover:bg-muted rounded-md"
+                            >
+                              <Copy className="h-3 w-3 text-muted-foreground" />
+                            </button>
+                          </div>
                         </TableCell>
                         <TableCell>
                           <Badge variant="secondary" className="font-mono">v{resume.version}</Badge>
@@ -219,9 +304,66 @@ export function ResumeDashboard() {
                           {new Date(resume.created_at).toLocaleDateString()}
                         </TableCell>
                         <TableCell>
-                          <Badge variant={resume.status === 'active' ? 'default' : 'secondary'}>
+                          <Badge 
+                            variant={
+                              resume.status === 'active' 
+                                ? 'default'
+                                : resume.status === 'archived' 
+                                  ? 'secondary' 
+                                  : 'destructive'
+                            }
+                          >
                             {resume.status}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger className="h-8 w-8 p-0">
+                              <div className="h-8 w-8 p-0 flex items-center justify-center hover:bg-muted rounded-md">
+                                <MoreHorizontal className="h-4 w-4" />
+                                <span className="sr-only">Open menu</span>
+                              </div>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              <DropdownMenuLabel>Actions</DropdownMenuLabel>
+                              <DropdownMenuItem
+                                onClick={() => window.open(`/resume/${resume.id}`, '_blank')}
+                                className="cursor-pointer"
+                              >
+                                <Eye className="mr-2 h-4 w-4" />
+                                View Resume
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => copyToClipboard(resume.tracking_url)}
+                                className="cursor-pointer"
+                              >
+                                <LinkIcon className="mr-2 h-4 w-4" />
+                                Copy Tracking Link
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => window.open(`/resume/${resume.id}/edit`, '_blank')}
+                                className="cursor-pointer"
+                              >
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              <DropdownMenuItem
+                                onClick={() => handleArchive(resume.id)}
+                                className="cursor-pointer"
+                              >
+                                <Archive className="mr-2 h-4 w-4" />
+                                Archive
+                              </DropdownMenuItem>
+                              <DropdownMenuItem
+                                onClick={() => handleDelete(resume.id)}
+                                className="cursor-pointer text-destructive"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Delete
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
                         </TableCell>
                       </TableRow>
                     ))

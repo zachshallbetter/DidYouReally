@@ -4,6 +4,7 @@
 ## Core Principles
 enforce_rules:
   - "Use TypeScript for all code"
+  - "Use Shadcn UI for all components via npx shadcn@latest add [component]"
   - "Use Next.js for all pages"
   - "Use Tailwind CSS for all styling"
   - "Use Supabase for all database operations"
