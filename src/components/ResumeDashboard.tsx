@@ -8,21 +8,15 @@ import { CollapsibleSection } from '@/components/dashboard/CollapsibleSection';
 import { toast } from "@/hooks/use-toast";
 import { initializeDatabase } from '@/lib/db';
 import { PrismaClient } from '@prisma/client';
-
-type BaseResume = NonNullable<Awaited<ReturnType<PrismaClient['resume']['findFirst']>>>;
-
-interface Resume extends BaseResume {
-  lastEvent?: {
-    type: string;
-    createdAt: string;
-  } | null;
-  company: {
-    name: string;
-  };
-}
+import { Resume } from "@/types/resume";
 
 type TrackingLog = NonNullable<Awaited<ReturnType<PrismaClient['trackingLog']['findFirst']>>>;
 type ResumeEvent = NonNullable<Awaited<ReturnType<PrismaClient['resumeEvent']['findFirst']>>>;
+
+interface DashboardProps {
+  resumes: Resume[];
+  // ... other props ...
+}
 
 export function ResumeDashboard() {
   const [resumes, setResumes] = useState<Resume[]>([]);
@@ -46,31 +40,7 @@ export function ResumeDashboard() {
       if (!response.ok) throw new Error('Failed to fetch data');
       const data = await response.json();
       
-      // Sort resumes by most recent event and enrich with last event info
-      const sortedResumes = [...data.resumes].map((resume: BaseResume) => {
-        // Get all events for this resume
-        const resumeEvents = data.events.filter((event: ResumeEvent) => event.resumeId === resume.id);
-        // Sort events by date descending
-        const sortedEvents = resumeEvents.sort((a: ResumeEvent, b: ResumeEvent) => 
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-        // Get the most recent event
-        const lastEvent = sortedEvents[0];
-        
-        return {
-          ...resume,
-          lastEvent: lastEvent ? {
-            type: lastEvent.type,
-            createdAt: lastEvent.createdAt
-          } : null
-        };
-      }).sort((a: Resume, b: Resume) => {
-        const aLastAccessed = a.lastEvent?.createdAt || a.createdAt;
-        const bLastAccessed = b.lastEvent?.createdAt || b.createdAt;
-        return new Date(bLastAccessed).getTime() - new Date(aLastAccessed).getTime();
-      });
-      
-      setResumes(sortedResumes);
+      setResumes(data.resumes);
       setLogs(data.logs);
       setEvents(data.events);
     } catch (error) {

@@ -8,12 +8,20 @@ import { TrackingLogs } from '@/components/dashboard/TrackingLogs';
 import { CollapsibleSection } from '@/components/dashboard/CollapsibleSection';
 import { UploadResume } from '@/components/UploadResume';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { Sheet, SheetContent } from '@/components/ui/sheet';
+import { Loader2 } from 'lucide-react';
 import type { Resume, ResumeEvent, TrackingLog } from '@prisma/client';
 
 interface DashboardData {
-  resumes: (Resume & { company: { name: string } })[];
-  events: ResumeEvent[];
-  logs: TrackingLog[];
+  resumes: (Resume & { 
+    company: { name: string };
+    trackingLogs: TrackingLog[];
+    events: ResumeEvent[];
+  })[];
+  metrics: {
+    events: Array<{ type: string; _count: number }>;
+    locations: Array<{ location: string; _count: number }>;
+  };
 }
 
 export default function DashboardPage() {
@@ -35,7 +43,12 @@ export default function DashboardPage() {
         const dashboardData = await response.json();
         setData(dashboardData);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to fetch dashboard data');
+        const errorMessage = err instanceof Error ? err.message : 'Failed to fetch dashboard data';
+        setError(errorMessage);
+        // Log error to terminal in development
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Runtime Error:', errorMessage);
+        }
       } finally {
         setLoading(false);
       }
@@ -44,9 +57,14 @@ export default function DashboardPage() {
     fetchDashboardData();
   }, []);
 
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error}</div>;
-  if (!data) return null;
+  const handleError = (error: unknown, context: string) => {
+    const errorMessage = error instanceof Error ? error.message : 'An error occurred';
+    // Log error to terminal in development
+    if (process.env.NODE_ENV === 'development') {
+      console.error(`Runtime Error in ${context}:`, errorMessage);
+    }
+    return errorMessage;
+  };
 
   const handleEdit = async (resumeId: string, formData: any) => {
     try {
@@ -58,7 +76,7 @@ export default function DashboardPage() {
       if (!response.ok) throw new Error('Failed to update resume');
       window.location.reload();
     } catch (error) {
-      console.error('Error updating resume:', error);
+      handleError(error, 'handleEdit');
     }
   };
 
@@ -70,7 +88,7 @@ export default function DashboardPage() {
       if (!response.ok) throw new Error('Failed to archive resume');
       window.location.reload();
     } catch (error) {
-      console.error('Error archiving resume:', error);
+      handleError(error, 'handleArchive');
     }
   };
 
@@ -83,7 +101,7 @@ export default function DashboardPage() {
       if (!response.ok) throw new Error('Failed to delete resume');
       window.location.reload();
     } catch (error) {
-      console.error('Error deleting resume:', error);
+      handleError(error, 'handleDelete');
     }
   };
 
@@ -91,7 +109,7 @@ export default function DashboardPage() {
     try {
       await navigator.clipboard.writeText(url);
     } catch (error) {
-      console.error('Error copying URL:', error);
+      handleError(error, 'handleCopyUrl');
     }
   };
 
@@ -102,68 +120,124 @@ export default function DashboardPage() {
     }));
   };
 
+  const getLatestActivity = (data: DashboardData) => {
+    if (!data.resumes.length) return null;
+    
+    const allEvents = data.resumes.flatMap(resume => 
+      resume.events.map(event => ({
+        ...event,
+        resumeId: resume.id
+      }))
+    );
+    
+    if (!allEvents.length) return null;
+    
+    return allEvents.sort((a, b) => 
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    )[0].createdAt;
+  };
+
+  const getTotalViews = (data: DashboardData) => {
+    return data.resumes.reduce((total, resume) => 
+      total + resume.viewCount, 0
+    );
+  };
+
+  const getUniqueLocations = (data: DashboardData) => {
+    const locations = new Set(
+      data.resumes.flatMap(resume => 
+        resume.trackingLogs.map(log => log.location)
+      ).filter(Boolean)
+    );
+    return locations.size;
+  };
+
+  if (error) {
+    return (
+      <div className="container mx-auto py-8">
+        <div className="rounded-lg border border-destructive/50 bg-destructive/10 p-4">
+          <h2 className="text-lg font-semibold text-destructive">Error</h2>
+          <p className="mt-2 text-sm text-destructive">{error}</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="container mx-auto py-8 space-y-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">Resume Dashboard</h1>
-        <ThemeToggle />
-      </div>
+    <>
+      <Sheet open={loading}>
+        <SheetContent side="top" className="flex items-center justify-center">
+          <div className="flex items-center gap-4">
+            <Loader2 className="h-6 w-6 animate-spin" />
+            <p className="text-lg">Loading dashboard data...</p>
+          </div>
+        </SheetContent>
+      </Sheet>
 
-      <StatsOverview
-        totalResumes={data.resumes.length}
-        totalViews={data.logs.length}
-        uniqueLocations={new Set(data.logs.map(log => log.location).filter(Boolean)).size}
-        latestActivity={data.logs[0]?.createdAt}
-      />
-      
-      <div className="grid gap-4">
-        <CollapsibleSection
-          title="Recommendations"
-          description="Insights and suggestions to improve your resume performance"
-          isExpanded={expandedSections.recommendations}
-          onToggle={() => toggleSection('recommendations')}
-        >
-          <Recommendations
-            resumes={data.resumes}
-            logs={data.logs}
+      {data && (
+        <div className="container mx-auto py-8 space-y-8">
+          <div className="flex items-center justify-between">
+            <h1 className="text-3xl font-bold">Resume Dashboard</h1>
+            <ThemeToggle />
+          </div>
+
+          <StatsOverview
+            totalResumes={data.resumes.length}
+            totalViews={getTotalViews(data)}
+            uniqueLocations={getUniqueLocations(data)}
+            latestActivity={getLatestActivity(data)}
           />
-        </CollapsibleSection>
+          
+          <div className="grid gap-4">
+            <CollapsibleSection
+              title="Recommendations"
+              description="Insights and suggestions to improve your resume performance"
+              isExpanded={expandedSections.recommendations}
+              onToggle={() => toggleSection('recommendations')}
+            >
+              <Recommendations
+                resumes={data.resumes}
+                logs={data.logs}
+              />
+            </CollapsibleSection>
 
-        <CollapsibleSection
-          title="Add New Resume"
-          description="Upload a new resume to track its performance"
-          isExpanded={expandedSections.upload}
-          onToggle={() => toggleSection('upload')}
-          showAdd
-          onAdd={() => toggleSection('upload')}
-        >
-          <UploadResume onUploadComplete={() => window.location.reload()} />
-        </CollapsibleSection>
+            <CollapsibleSection
+              title="Add New Resume"
+              description="Upload a new resume to track its performance"
+              isExpanded={expandedSections.upload}
+              onToggle={() => toggleSection('upload')}
+              showAdd
+              onAdd={() => toggleSection('upload')}
+            >
+              <UploadResume onUploadComplete={() => window.location.reload()} />
+            </CollapsibleSection>
 
-        <CollapsibleSection
-          title="Active Resumes"
-          description="Currently tracked resumes and their details"
-          isExpanded={expandedSections.resumes}
-          onToggle={() => toggleSection('resumes')}
-        >
-          <ResumeTable
-            resumes={data.resumes}
-            onEdit={handleEdit}
-            onArchive={handleArchive}
-            onDelete={handleDelete}
-            onCopyUrl={handleCopyUrl}
-          />
-        </CollapsibleSection>
+            <CollapsibleSection
+              title="Active Resumes"
+              description="Currently tracked resumes and their details"
+              isExpanded={expandedSections.resumes}
+              onToggle={() => toggleSection('resumes')}
+            >
+              <ResumeTable
+                resumes={data.resumes}
+                onEdit={handleEdit}
+                onArchive={handleArchive}
+                onDelete={handleDelete}
+                onCopyUrl={handleCopyUrl}
+              />
+            </CollapsibleSection>
 
-        <CollapsibleSection
-          title="Tracking Logs"
-          description="Recent resume view activity"
-          isExpanded={expandedSections.logs}
-          onToggle={() => toggleSection('logs')}
-        >
-          <TrackingLogs logs={data.logs} />
-        </CollapsibleSection>
-      </div>
-    </div>
+            <CollapsibleSection
+              title="Tracking Logs"
+              description="Recent resume view activity"
+              isExpanded={expandedSections.logs}
+              onToggle={() => toggleSection('logs')}
+            >
+              <TrackingLogs logs={data.logs} />
+            </CollapsibleSection>
+          </div>
+        </div>
+      )}
+    </>
   );
 } 

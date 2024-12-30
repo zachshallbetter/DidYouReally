@@ -7,16 +7,16 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Monitor, Smartphone, Tablet, HelpCircle, TrendingUp, AlertTriangle, Lightbulb, BarChart as BarChartIcon } from "lucide-react";
+import { MapPin, Monitor, Smartphone, Tablet, HelpCircle, TrendingUp, AlertTriangle, Lightbulb, BarChart as BarChartIcon, Cloud } from "lucide-react";
 import { PrismaClient } from '@prisma/client';
 
 type TrackingLog = NonNullable<Awaited<ReturnType<PrismaClient['trackingLog']['findFirst']>>>;
 
 interface TrackingLogsProps {
-  logs: TrackingLog[];
+  logs?: TrackingLog[];
 }
 
-export function TrackingLogs({ logs }: TrackingLogsProps) {
+export function TrackingLogs({ logs = [] }: TrackingLogsProps) {
   const getDeviceIcon = (deviceType: string) => {
     switch (deviceType) {
       case 'desktop':
@@ -30,7 +30,10 @@ export function TrackingLogs({ logs }: TrackingLogsProps) {
     }
   };
 
-  const getEventIcon = (eventType: string) => {
+  const getEventIcon = (eventType: string, isCloudService: boolean) => {
+    if (isCloudService) {
+      return <Cloud className="h-4 w-4 text-purple-500" />;
+    }
     switch (eventType) {
       case 'view':
         return <TrendingUp className="h-4 w-4 text-green-500" />;
@@ -43,6 +46,17 @@ export function TrackingLogs({ logs }: TrackingLogsProps) {
       default:
         return null;
     }
+  };
+
+  const getLocationDisplay = (log: TrackingLog) => {
+    if (!log.location) return 'Unknown';
+    
+    const geoData = log.geoLocation as any;
+    if (geoData?.isCloud) {
+      return `${geoData.cloudProvider} (${geoData.datacenter})`;
+    }
+    
+    return log.location;
   };
 
   return (
@@ -70,19 +84,15 @@ export function TrackingLogs({ logs }: TrackingLogsProps) {
             <TableRow key={log.id} className="hover:bg-muted/50">
               <TableCell className="font-mono text-xs">
                 <div className="flex items-center gap-2">
-                  {getEventIcon('view')}
+                  {getEventIcon('view', log.isCloudService)}
                   {log.resumeId}
                 </div>
               </TableCell>
               <TableCell>
-                {log.location ? (
-                  <div className="flex items-center gap-2">
-                    <MapPin className="h-3 w-3 text-muted-foreground" />
-                    <span>{log.location}</span>
-                  </div>
-                ) : (
-                  'Unknown'
-                )}
+                <div className="flex items-center gap-2">
+                  <MapPin className="h-3 w-3 text-muted-foreground" />
+                  <span>{getLocationDisplay(log)}</span>
+                </div>
               </TableCell>
               <TableCell className="font-mono text-xs">{log.ipAddress}</TableCell>
               <TableCell className="max-w-[200px] truncate text-xs text-muted-foreground">
@@ -92,6 +102,11 @@ export function TrackingLogs({ logs }: TrackingLogsProps) {
                 <div className="flex items-center gap-2">
                   {getDeviceIcon(log.deviceType)}
                   <span className="capitalize">{log.deviceType}</span>
+                  {log.deviceFingerprint && (
+                    <Badge variant="outline" className="ml-2 text-xs">
+                      Session: {log.sessionId?.slice(-4)}
+                    </Badge>
+                  )}
                 </div>
               </TableCell>
               <TableCell>
