@@ -3,6 +3,7 @@
 
 ## Core Principles
 enforce_rules:
+  - "use npm instead of yarn or pnpm"
   - "Use TypeScript for all code"
   - "Use Shadcn UI for all components via npx shadcn@latest add [component]"
   - "Use Next.js for all pages"

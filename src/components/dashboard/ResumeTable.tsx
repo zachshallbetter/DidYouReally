@@ -31,6 +31,7 @@ import type { Database } from '@/types/supabase';
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import formatDistanceToNow from "date-fns/formatDistanceToNow";
 
 type Resume = Database['public']['Tables']['resumes']['Row'];
 
@@ -78,8 +79,15 @@ export function ResumeTable({ resumes, onEdit, onArchive, onDelete, onCopyUrl }:
         ) : (
           resumes.map((resume) => (
             <TableRow key={resume.id} className="hover:bg-muted/50">
-              <TableCell className="font-medium">{resume.job_title}</TableCell>
-              <TableCell>{resume.company}</TableCell>
+              <TableCell className="font-medium">{resume.title}</TableCell>
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <div className="font-medium">{resume.company}</div>
+                  <Badge variant="outline" className="font-normal">
+                    {resume.company}
+                  </Badge>
+                </div>
+              </TableCell>
               <TableCell className="font-mono text-xs">
                 <div className="flex items-center gap-2">
                   <span className="truncate max-w-[200px]">{resume.tracking_url}</span>
@@ -94,23 +102,21 @@ export function ResumeTable({ resumes, onEdit, onArchive, onDelete, onCopyUrl }:
                 </div>
               </TableCell>
               <TableCell>
-                <Badge variant="secondary" className="font-mono">v{resume.version}</Badge>
+                <div className="flex items-center gap-2">
+                  <div className="text-sm text-muted-foreground">
+                    Last modified {formatDistanceToNow(new Date(resume.updated_at))} ago
+                  </div>
+                </div>
               </TableCell>
               <TableCell>
                 {new Date(resume.created_at || Date.now()).toLocaleDateString()}
               </TableCell>
               <TableCell>
-                <Badge 
-                  variant={
-                    resume.status === 'active' 
-                      ? 'default'
-                      : resume.status === 'archived' 
-                        ? 'secondary' 
-                        : 'destructive'
-                  }
-                >
-                  {resume.status}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <div className="text-sm text-muted-foreground">
+                    {resume.status}
+                  </div>
+                </div>
               </TableCell>
               <TableCell>
                 <DropdownMenu>
@@ -155,7 +161,7 @@ export function ResumeTable({ resumes, onEdit, onArchive, onDelete, onCopyUrl }:
                             <FormField
                               control={form.control}
                               name="job_title"
-                              defaultValue={resume.job_title}
+                              defaultValue={resume.title}
                               render={({ field }) => (
                                 <FormItem>
                                   <FormLabel>Job Title</FormLabel>

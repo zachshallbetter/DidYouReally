@@ -32,14 +32,18 @@ export const supabase = createClient<Database>(
 // Helper function to check database connection
 export async function checkDatabaseConnection() {
   try {
-    const { data, error } = await supabase
-      .from('resumes')
-      .select('count')
-      .limit(1)
-      .single();
+    const [resumesCheck, companiesCheck] = await Promise.all([
+      supabase.from('resumes').select('count').limit(1).single(),
+      supabase.from('companies').select('count').limit(1).single()
+    ]);
     
-    if (error) {
-      console.error('Database connection error:', error.message);
+    if (resumesCheck.error) {
+      console.error('Resumes table check error:', resumesCheck.error.message);
+      return false;
+    }
+    
+    if (companiesCheck.error) {
+      console.error('Companies table check error:', companiesCheck.error.message);
       return false;
     }
     

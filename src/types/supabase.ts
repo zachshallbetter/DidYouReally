@@ -9,11 +9,37 @@ export type Json =
 export interface Database {
   public: {
     Tables: {
+      companies: {
+        Row: {
+          id: string
+          name: string
+          website: string | null
+          industry: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          website?: string | null
+          industry?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          website?: string | null
+          industry?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+      }
       resumes: {
         Row: {
           id: string
           job_title: string
-          company: string
+          company_id: string
           tracking_url: string
           job_listing_url: string | null
           status: 'active' | 'archived' | 'deleted'
@@ -37,10 +63,10 @@ export interface Database {
         Insert: {
           id?: string
           job_title: string
-          company: string
+          company_id: string
           tracking_url: string
           job_listing_url?: string | null
-          status?: 'active' | 'archived' | 'deleted'
+          status: 'active' | 'archived' | 'deleted'
           version?: number
           created_at?: string
           updated_at?: string
@@ -61,7 +87,7 @@ export interface Database {
         Update: {
           id?: string
           job_title?: string
-          company?: string
+          company_id?: string
           tracking_url?: string
           job_listing_url?: string | null
           status?: 'active' | 'archived' | 'deleted'
@@ -101,6 +127,7 @@ export interface Database {
           referrer: string | null
           retention_expires_at: string
           engagement_metrics: Json
+          event_type: 'view' | 'send' | 'open' | 'click' | 'download' | null
         }
         Insert: {
           id?: string
@@ -117,8 +144,9 @@ export interface Database {
           browser?: string | null
           os?: string | null
           referrer?: string | null
-          retention_expires_at?: string
+          retention_expires_at: string
           engagement_metrics?: Json
+          event_type?: 'view' | 'send' | 'open' | 'click' | 'download' | null
         }
         Update: {
           id?: string
@@ -137,6 +165,45 @@ export interface Database {
           referrer?: string | null
           retention_expires_at?: string
           engagement_metrics?: Json
+          event_type?: 'view' | 'send' | 'open' | 'click' | 'download' | null
+        }
+      }
+      resume_events: {
+        Row: {
+          id: string
+          resume_id: string
+          event_type: 'view' | 'send' | 'open' | 'click' | 'download'
+          occurred_at: string
+          actor: string | null
+          metadata: Json
+          device_info: Json
+          location_info: Json
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          resume_id: string
+          event_type: 'view' | 'send' | 'open' | 'click' | 'download'
+          occurred_at?: string
+          actor?: string | null
+          metadata?: Json
+          device_info?: Json
+          location_info?: Json
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          resume_id?: string
+          event_type?: 'view' | 'send' | 'open' | 'click' | 'download'
+          occurred_at?: string
+          actor?: string | null
+          metadata?: Json
+          device_info?: Json
+          location_info?: Json
+          created_at?: string
+          updated_at?: string
         }
       }
       user_preferences: {
@@ -219,5 +286,115 @@ export interface Database {
         }
       }
     }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
-} 
+}
+
+type PublicSchema = Database[Extract<keyof Database, "public">]
+
+export type Tables<
+  PublicTableNameOrOptions extends
+    | keyof (PublicSchema["Tables"] & PublicSchema["Views"])
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
+        Database[PublicTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
+      Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : PublicTableNameOrOptions extends keyof (PublicSchema["Tables"] &
+        PublicSchema["Views"])
+    ? (PublicSchema["Tables"] &
+        PublicSchema["Views"])[PublicTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  PublicTableNameOrOptions extends
+    | keyof PublicSchema["Tables"]
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
+    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  PublicTableNameOrOptions extends
+    | keyof PublicSchema["Tables"]
+    | { schema: keyof Database },
+  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = PublicTableNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
+    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  PublicEnumNameOrOptions extends
+    | keyof PublicSchema["Enums"]
+    | { schema: keyof Database },
+  EnumName extends PublicEnumNameOrOptions extends { schema: keyof Database }
+    ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = PublicEnumNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]
+    ? PublicSchema["Enums"][PublicEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof PublicSchema["CompositeTypes"]
+    | { schema: keyof Database },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof Database
+  }
+    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
+  ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof PublicSchema["CompositeTypes"]
+    ? PublicSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+

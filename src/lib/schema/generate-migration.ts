@@ -1,7 +1,7 @@
 import { TableSchema, ColumnDefinition, schemas } from './index';
 
 function generateColumnDefinition(name: string, column: ColumnDefinition): string {
-  const parts = [name, column.type];
+  const parts = [column.type];
 
   if (column.primaryKey) {
     parts.push('PRIMARY KEY');

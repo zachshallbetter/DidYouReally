@@ -1,0 +1,41 @@
+{
+  "schema": "public",
+  "tables": {
+    "companies": {
+      "columns": {
+        "id": "uuid",
+        "name": "text",
+        "website": "text",
+        "industry": "text",
+        "created_at": "timestamp with time zone",
+        "updated_at": "timestamp with time zone"
+      }
+    },
+    "resumes": {
+      "columns": {
+        "id": "uuid",
+        "job_title": "text",
+        "company_id": "uuid",
+        "tracking_url": "text",
+        "job_listing_url": "text",
+        "status": "text",
+        "version": "integer",
+        "created_at": "timestamp with time zone",
+        "updated_at": "timestamp with time zone",
+        "archived_at": "timestamp with time zone",
+        "original_content": "text",
+        "metadata": "jsonb",
+        "layout_preferences": "jsonb",
+        "tags": "text[]",
+        "company_type": "text",
+        "job_level": "text",
+        "application_status": "text",
+        "last_accessed_at": "timestamp with time zone",
+        "last_modified_by": "text",
+        "view_count": "integer",
+        "unique_locations": "integer",
+        "avg_view_duration": "float"
+      }
+    }
+  }
+} 

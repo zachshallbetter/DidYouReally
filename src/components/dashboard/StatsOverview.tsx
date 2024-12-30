@@ -11,6 +11,16 @@ interface StatsOverviewProps {
 }
 
 export function StatsOverview({ resumes, logs }: StatsOverviewProps) {
+  // Get recent activity
+  const recentActivity = logs
+    .filter(log => log.timestamp)
+    .sort((a, b) => {
+      const dateA = new Date(a.timestamp!).getTime();
+      const dateB = new Date(b.timestamp!).getTime();
+      return dateB - dateA;
+    })
+    .slice(0, 5);
+
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
       <Card>

@@ -59,8 +59,12 @@ export function TrackingLogs({ logs }: TrackingLogsProps) {
                   {log.view_duration || 'N/A'}
                 </Badge>
               </TableCell>
-              <TableCell className="text-xs">
-                {new Date(log.timestamp || Date.now()).toLocaleString()}
+              <TableCell>
+                <div className="flex items-center gap-2">
+                  <div className="font-medium">
+                    {new Date(log.created_at || Date.now()).toLocaleString()}
+                  </div>
+                </div>
               </TableCell>
             </TableRow>
           ))
