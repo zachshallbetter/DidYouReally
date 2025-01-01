@@ -1,3 +1,6 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,180 +16,77 @@ enum ResumeStatus {
   deleted
 }
 
-enum ApplicationStatus {
-  draft
-  sent
-  interviewing
-  rejected
-  accepted
+enum ResumeState {
+  not_opened
+  recently_viewed
+  frequently_accessed
+  multi_device_viewed
+  cloud_accessed
+  expired
 }
 
-enum DeviceType {
-  desktop
-  mobile
-  tablet
-  unknown
+enum TrackingSource {
+  pixel
+  link
+  direct
 }
 
 enum EventType {
   view
-  send
-  open
-  click
   download
-}
-
-enum ApplicationTrackingStatus {
-  screening
-  interviewing
-  offered
-  rejected
-  accepted
-  withdrawn
-}
-
-enum ResumeState {
-  active
-  recently_viewed
-  expired
-  multi_device
-  under_consideration
-  cloud_accessed
-  frequently_accessed
-}
-
-model Company {
-  id          String    @id @default(uuid())
-  name        String    @unique
-  website     String?
-  industry    String?
-  location    String?
-  size        String?
-  description String?
-  resumes     Resume[]
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
-
-  @@map("companies")
+  share
+  state_change
 }
 
 model Resume {
-  id                String               @id @default(uuid())
-  jobTitle         String               @map("job_title")
-  company          Company              @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  companyId        String               @map("company_id")
-  trackingUrl      String               @unique @map("tracking_url")
-  trackingId       String               @unique @map("tracking_id")
-  jobListingUrl    String?              @map("job_listing_url")
-  status           ResumeStatus         @default(active)
-  calculatedState  ResumeState?         @map("calculated_state")
-  stateUpdatedAt   DateTime?            @map("state_updated_at")
-  version          Int                  @default(1)
-  archivedAt       DateTime?            @map("archived_at")
-  originalContent  String?              @map("original_content")
-  currentContent   String?              @map("current_content")
-  metadata         Json                 @default("{}")
-  layoutPreferences Json                @default("{}") @map("layout_preferences")
-  tags             String[]             @default([])
-  companyType      String?              @map("company_type")
-  jobLevel         String?              @map("job_level")
-  applicationStatus ApplicationStatus?   @map("application_status")
-  lastAccessedAt   DateTime?            @map("last_accessed_at")
-  lastModifiedBy   String?              @map("last_modified_by")
-  viewCount        Int                  @default(0) @map("view_count")
-  uniqueLocations  Int                  @default(0) @map("unique_locations")
-  cloudAccessCount Int                  @default(0) @map("cloud_access_count")
-  deviceAccessCount Int                 @default(0) @map("device_access_count")
-  avgViewDuration  Float                @default(0) @map("avg_view_duration")
-  
-  // New fields for formulas
-  recentViewCount  Int                  @default(0) @map("recent_view_count")
-  lastViewDate     DateTime?            @map("last_view_date")
-  uniqueLocationsLast7Days Int          @default(0) @map("unique_locations_last_7_days")
-  lastDeviceType   DeviceType?          @map("last_device_type")
-  distinctDeviceCount Int               @default(0) @map("distinct_device_count")
-  
-  createdAt        DateTime             @default(now()) @map("created_at")
-  updatedAt        DateTime             @updatedAt @map("updated_at")
-  
+  id                String        @id @default(uuid())
+  job_title         String        @db.VarChar(255)
+  company           Json
+  job_listing_url   String?       @db.Text
+  status           ResumeStatus  @default(active)
+  state            ResumeState   @default(not_opened)
+  viewCount        Int          @default(0)
+  uniqueLocations  Int          @default(0)
+  deviceAccessCount Int          @default(0)
+  cloudAccessCount  Int          @default(0)
+  avgViewDuration   Int          @default(0)
+  lastAccessedAt    DateTime?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
   trackingLogs     TrackingLog[]
-  events           ResumeEvent[]
-  applications     ApplicationTracking[]
-  versions         ResumeVersion[]
+  events           Event[]
 
-  @@index([status])
-  @@index([calculatedState])
-  @@index([applicationStatus])
-  @@index([companyId])
-  @@index([lastViewDate])
-  @@index([recentViewCount])
-  @@map("resumes")
-}
-
-model ResumeVersion {
-  id          String   @id @default(uuid())
-  resume      Resume   @relation(fields: [resumeId], references: [id], onDelete: Cascade)
-  resumeId    String   @map("resume_id")
-  version     Int
-  content     String
-  metadata    Json     @default("{}")
-  createdAt   DateTime @default(now()) @map("created_at")
-
-  @@unique([resumeId, version])
-  @@index([resumeId])
-  @@map("resume_versions")
+  @@index([status, state])
+  @@index([createdAt])
+  @@index([lastAccessedAt])
 }
 
 model TrackingLog {
-  id              String    @id @default(uuid())
-  resume          Resume    @relation(fields: [resumeId], references: [id], onDelete: Cascade)
-  resumeId        String    @map("resume_id")
-  ipAddress       String?   @map("ip_address")
-  userAgent       String?   @map("user_agent")
-  deviceType      DeviceType @default(unknown)
-  isCloudService  Boolean   @default(false) @map("is_cloud_service")
-  location        String?
-  referrer        String?
-  duration        Int?      // Duration in seconds
-  
-  // New fields for better tracking
-  deviceFingerprint String?   @map("device_fingerprint")
-  sessionId        String?    @map("session_id")
-  geoLocation     Json?      @map("geo_location")
-  
-  createdAt       DateTime  @default(now()) @map("created_at")
+  id             String         @id @default(uuid())
+  resumeId       String
+  resume         Resume         @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  ip_address     String         @db.VarChar(45)
+  user_agent     String         @db.Text
+  deviceType     String         @db.VarChar(50)
+  isCloudService Boolean        @default(false)
+  source         TrackingSource @default(direct)
+  location       String?        @db.VarChar(100)
+  metadata       Json?
+  createdAt      DateTime       @default(now())
 
-  @@index([resumeId])
-  @@index([createdAt])
+  @@index([resumeId, createdAt])
   @@index([deviceType])
-  @@index([deviceFingerprint])
-  @@index([sessionId])
-  @@map("tracking_logs")
+  @@index([source])
 }
 
-model ResumeEvent {
-  id          String    @id @default(uuid())
-  resume      Resume    @relation(fields: [resumeId], references: [id], onDelete: Cascade)
-  resumeId    String    @map("resume_id")
-  type        EventType
-  metadata    Json      @default("{}")
-  createdAt   DateTime  @default(now()) @map("created_at")
+model Event {
+  id        String    @id @default(uuid())
+  resumeId  String
+  resume    Resume    @relation(fields: [resumeId], references: [id], onDelete: Cascade)
+  type      EventType
+  metadata  Json?
+  createdAt DateTime  @default(now())
 
-  @@index([resumeId])
-  @@index([type])
-  @@map("resume_events")
-}
-
-model ApplicationTracking {
-  id          String                    @id @default(uuid())
-  resume      Resume                    @relation(fields: [resumeId], references: [id], onDelete: Cascade)
-  resumeId    String                    @map("resume_id")
-  status      ApplicationTrackingStatus
-  notes       String?
-  appliedAt   DateTime                  @map("applied_at")
-  updatedAt   DateTime                  @updatedAt @map("updated_at")
-
-  @@index([resumeId])
-  @@index([status])
-  @@map("application_tracking")
+  @@index([resumeId, type, createdAt])
+  @@index([createdAt])
 } 

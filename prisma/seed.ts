@@ -4,449 +4,163 @@ import { subDays, addHours, subMonths, addMinutes, startOfDay, endOfDay, differe
 
 const prisma = new PrismaClient();
 
-type DeviceType = 'desktop' | 'mobile' | 'tablet' | 'unknown';
-type EventType = 'view' | 'send' | 'open' | 'click' | 'download';
-type ResumeState = 'active' | 'recently_viewed' | 'expired' | 'multi_device' | 'under_consideration' | 'cloud_accessed';
-
-// Test scenarios to ensure coverage of all formulas
-const TEST_SCENARIOS = [
-  {
-    name: 'Frequently Accessed',
-    viewCount: 15,
-    timeSpan: 7,
-    deviceTypes: ['desktop' as DeviceType],
-    isCloud: false,
-    locations: ['San Francisco, CA', 'San Jose, CA'],
-    sessionPattern: 'multiple', // Multiple sessions per day
-    eventChain: true,
-    eventFrequency: 'high', // Multiple events per day
-    applicationStatus: undefined
-  },
-  {
-    name: 'Multi-Device Access',
-    viewCount: 8,
-    timeSpan: 5,
-    deviceTypes: ['desktop' as DeviceType, 'mobile' as DeviceType, 'tablet' as DeviceType],
-    isCloud: false,
-    locations: ['New York, NY', 'Boston, MA', 'Chicago, IL'],
-    sessionPattern: 'multiple',
-    eventChain: true,
-    eventFrequency: 'medium', // 1-2 events per day
-    applicationStatus: undefined
-  },
-  {
-    name: 'Cloud Service Access',
-    viewCount: 10,
-    timeSpan: 5,
-    deviceTypes: ['unknown' as DeviceType],
-    isCloud: true,
-    locations: ['AWS Cloud', 'Google Cloud', 'Azure Cloud'],
-    sessionPattern: 'continuous',
-    eventChain: false,
-    eventFrequency: 'high',
-    applicationStatus: undefined
-  },
-  {
-    name: 'Recently Viewed',
-    viewCount: 3,
-    timeSpan: 2,
-    deviceTypes: ['desktop' as DeviceType],
-    isCloud: false,
-    locations: ['Seattle, WA'],
-    sessionPattern: 'single',
-    eventChain: true,
-    eventFrequency: 'low', // Few events spread out
-    applicationStatus: undefined
-  },
-  {
-    name: 'Expired Resume',
-    viewCount: 5,
-    timeSpan: 45,
-    deviceTypes: ['desktop' as DeviceType],
-    isCloud: false,
-    locations: ['Austin, TX'],
-    sessionPattern: 'single',
-    eventChain: false,
-    eventFrequency: 'none', // No recent events
-    forceExpired: true,
-    applicationStatus: undefined
-  },
-  {
-    name: 'Under Consideration',
-    viewCount: 12,
-    timeSpan: 14,
-    deviceTypes: ['desktop' as DeviceType, 'mobile' as DeviceType],
-    isCloud: false,
-    locations: ['Los Angeles, CA', 'San Diego, CA'],
-    sessionPattern: 'multiple',
-    eventChain: true,
-    eventFrequency: 'medium',
-    applicationStatus: 'interviewing'
-  }
-];
-
-// Helper function to generate device fingerprint
-function generateDeviceFingerprint(deviceType: DeviceType, userAgent: string): string {
-  return `${deviceType}-${faker.string.alphanumeric(16)}`;
-}
-
-// Helper function to generate session ID
-function generateSessionId(): string {
-  return `session-${faker.string.alphanumeric(12)}`;
-}
-
-// Helper function to generate geo location data
-function generateGeoLocation(location: string): any {
-  const geoData: any = {
-    city: location.split(',')[0].trim(),
-    region: location.includes(',') ? location.split(',')[1].trim() : undefined,
-    country: 'US',
-    latitude: faker.location.latitude(),
-    longitude: faker.location.longitude(),
-    timezone: faker.location.timeZone(),
-    isp: faker.company.name()
-  };
-
-  if (location.includes('Cloud')) {
-    geoData.isCloud = true;
-    geoData.cloudProvider = location.split(' ')[0];
-    geoData.datacenter = faker.location.city();
-  }
-
-  return geoData;
-}
-
-// Helper function to generate events based on frequency
-function generateEventsForDay(
-  date: Date,
-  frequency: string,
-  sessionData: { deviceType: DeviceType; fingerprint: string; userAgent: string },
-  isCloud: boolean,
-  location: string
-): Array<{ event: any; log: any }> {
-  const events: Array<{ event: any; log: any }> = [];
-  const eventsPerDay = {
-    high: { min: 3, max: 5 },
-    medium: { min: 1, max: 2 },
-    low: { min: 0, max: 1 },
-    none: { min: 0, max: 0 }
-  }[frequency] || { min: 0, max: 0 };
-
-  const numEvents = faker.number.int({ min: eventsPerDay.min, max: eventsPerDay.max });
-
-  for (let i = 0; i < numEvents; i++) {
-    const eventTime = new Date(date);
-    eventTime.setHours(faker.number.int({ min: 9, max: 17 })); // Business hours
-    eventTime.setMinutes(faker.number.int({ min: 0, max: 59 }));
-
-    const duration = faker.number.int({ min: 30, max: 300 });
-    const geoData = generateGeoLocation(location);
-
-    events.push({
-      event: {
-        type: 'view',
-        createdAt: eventTime,
-        metadata: {
-          source: faker.helpers.arrayElement(['email', 'linkedin', 'direct', 'referral']),
-          isCloudService: isCloud,
-          deviceType: sessionData.deviceType,
-          sessionId: sessionData.fingerprint
-        }
-      },
-      log: {
-        deviceType: sessionData.deviceType,
-        isCloudService: isCloud,
-        location,
-        ipAddress: faker.internet.ip(),
-        userAgent: sessionData.userAgent,
-        referrer: faker.internet.url(),
-        duration,
-        deviceFingerprint: sessionData.fingerprint,
-        sessionId: sessionData.fingerprint,
-        geoLocation: geoData,
-        createdAt: eventTime
-      }
-    });
-
-    // Add follow-up events
-    if (Math.random() < 0.7) {
-      const followUpEvents: Array<'send' | 'open' | 'click' | 'download'> = ['send', 'open', 'click', 'download'];
-      let lastTime = eventTime;
-
-      for (const type of followUpEvents) {
-        if (Math.random() < 0.8) {
-          lastTime = new Date(lastTime.getTime() + faker.number.int({ min: 5, max: 30 }) * 60000);
-          events.push({
-            event: {
-              type,
-              createdAt: lastTime,
-              metadata: {
-                source: 'email',
-                isCloudService: isCloud,
-                deviceType: sessionData.deviceType,
-                sessionId: sessionData.fingerprint
-              }
-            },
-            log: {
-              deviceType: sessionData.deviceType,
-              isCloudService: isCloud,
-              location,
-              ipAddress: faker.internet.ip(),
-              userAgent: sessionData.userAgent,
-              referrer: faker.internet.url(),
-              duration: faker.number.int({ min: 10, max: 60 }),
-              deviceFingerprint: sessionData.fingerprint,
-              sessionId: sessionData.fingerprint,
-              geoLocation: geoData,
-              createdAt: lastTime
-            }
-          });
-        }
-      }
-    }
-  }
-
-  return events;
-}
-
-// Helper function to generate test scenario data with proper relations
-function generateTestScenarioData(scenario: typeof TEST_SCENARIOS[0], createdAt: Date) {
-  const events: Array<{ type: string; createdAt: Date; metadata: any }> = [];
-  const logs: Array<any> = [];
-  const today = new Date();
-  
-  // Generate sessions based on pattern
-  const sessions = new Map<string, { deviceType: DeviceType; fingerprint: string; userAgent: string }>();
-  
-  scenario.deviceTypes.forEach(deviceType => {
-    const userAgent = faker.internet.userAgent();
-    sessions.set(generateSessionId(), {
-      deviceType,
-      fingerprint: generateDeviceFingerprint(deviceType, userAgent),
-      userAgent
-    });
-  });
-
-  // Generate events for each day in the timespan
-  for (let day = 0; day < scenario.timeSpan; day++) {
-    const eventDate = scenario.forceExpired 
-      ? subDays(today, scenario.timeSpan + faker.number.int({ min: 5, max: 15 }))
-      : subDays(today, day);
-
-    // Select session based on pattern
-    const sessionEntries = Array.from(sessions.entries());
-    const [sessionId, sessionData] = sessionEntries[
-      scenario.sessionPattern === 'single' ? 0 : 
-      faker.number.int({ min: 0, max: sessionEntries.length - 1 })
-    ];
-
-    const location = faker.helpers.arrayElement(scenario.locations);
-    const dailyEvents = generateEventsForDay(
-      eventDate,
-      scenario.eventFrequency,
-      sessionData,
-      scenario.isCloud,
-      location
-    );
-
-    dailyEvents.forEach(({ event, log }) => {
-      events.push(event);
-      logs.push(log);
-    });
-  }
-
-  // Calculate metrics
-  const uniqueLocations = new Set(logs.map(log => log.location));
-  const recentLogs = logs.filter(log => 
-    differenceInDays(new Date(), log.createdAt) <= 7
-  );
-  const uniqueLocationsLast7Days = new Set(recentLogs.map(log => log.location));
-  const distinctDevices = new Set(logs.map(log => log.deviceFingerprint));
-
-  return {
-    events,
-    logs,
-    metrics: {
-      viewCount: logs.length,
-      uniqueLocations: uniqueLocations.size,
-      uniqueLocationsLast7Days: uniqueLocationsLast7Days.size,
-      cloudAccessCount: logs.filter(log => log.isCloudService).length,
-      deviceAccessCount: logs.filter(log => !log.isCloudService).length,
-      avgViewDuration: logs.reduce((sum, log) => sum + log.duration, 0) / (logs.length || 1),
-      recentViewCount: recentLogs.length,
-      lastViewDate: logs.length > 0 ? logs[logs.length - 1].createdAt : null,
-      lastDeviceType: logs.length > 0 ? logs[logs.length - 1].deviceType : null,
-      distinctDeviceCount: distinctDevices.size
-    }
-  };
-}
-
-// Helper function to convert scenario name to ResumeState
-function getResumeState(scenarioName: string): ResumeState {
-  switch (scenarioName) {
-    case 'Frequently Accessed':
-      return 'frequently_accessed' as ResumeState;
-    case 'Multi-Device Access':
-      return 'multi_device' as ResumeState;
-    case 'Cloud Service Access':
-      return 'cloud_accessed' as ResumeState;
-    case 'Recently Viewed':
-      return 'recently_viewed' as ResumeState;
-    case 'Expired Resume':
-      return 'expired' as ResumeState;
-    case 'Under Consideration':
-      return 'under_consideration' as ResumeState;
-    default:
-      return 'active' as ResumeState;
-  }
-}
-
 async function main() {
   // Clear existing data
-  await prisma.resumeEvent.deleteMany();
   await prisma.trackingLog.deleteMany();
-  await prisma.applicationTracking.deleteMany();
-  await prisma.resumeVersion.deleteMany();
+  await prisma.event.deleteMany();
   await prisma.resume.deleteMany();
-  await prisma.company.deleteMany();
 
-  // Create test companies
   const companies = [
-    { 
+    {
       name: 'Meta',
-      website: 'meta.com',
-      industry: 'Technology',
-      location: 'Menlo Park, CA',
-      size: '50,000+',
-      description: 'Social media and virtual reality technology company.'
+      industry: 'Technology', 
+      location: 'Menlo Park, CA'
     },
-    { 
+    {
       name: 'Apple',
-      website: 'apple.com',
       industry: 'Technology',
-      location: 'Cupertino, CA',
-      size: '150,000+',
-      description: 'Consumer technology company known for innovative hardware and software products.'
+      location: 'Cupertino, CA'
+    },
+    {
+      name: 'Google',
+      industry: 'Technology',
+      location: 'Mountain View, CA'
     }
   ];
 
-  const createdCompanies = await Promise.all(
-    companies.map(company => 
-      prisma.company.create({
-        data: company
-      })
-    )
-  );
+  const deviceTypes = ['desktop', 'mobile', 'tablet', 'cloud'];
+  const sources = ['email', 'linkedin', 'direct', 'referral'];
+  const browsers = ['Chrome', 'Safari', 'Firefox', 'Edge'];
+  const operatingSystems = ['Windows', 'Mac OS X', 'iOS', 'Android'];
 
-  // Create test resumes for each scenario
-  for (const company of createdCompanies) {
-    for (const scenario of TEST_SCENARIOS) {
-      const createdAt = subDays(new Date(), scenario.timeSpan + faker.number.int({ min: 0, max: 10 }));
-      const trackingId = faker.string.alphanumeric(8).toLowerCase();
-      
-      // Generate data based on scenario
-      const { events, logs, metrics } = generateTestScenarioData(scenario, createdAt);
-      
-      // Create resume with scenario data
-      const resume = await prisma.resume.create({
-        data: {
-          jobTitle: `${faker.helpers.arrayElement(['Senior', 'Lead', 'Principal'])} ${faker.helpers.arrayElement(['Software Engineer', 'Product Manager'])}`,
-          companyId: company.id,
-          trackingId,
-          trackingUrl: `https://dyr.fyi/${trackingId}`,
-          jobListingUrl: faker.internet.url(),
-          status: 'active',
-          calculatedState: getResumeState(scenario.name),
-          stateUpdatedAt: new Date(),
-          version: 1,
-          originalContent: faker.lorem.paragraphs(3),
-          currentContent: faker.lorem.paragraphs(3),
-          metadata: { keywords: faker.helpers.multiple(() => faker.word.sample(), { count: 5 }) },
-          layoutPreferences: { theme: 'modern', fontSize: '12pt' },
-          tags: faker.helpers.arrayElements(['Remote', 'Hybrid', 'On-site', 'Full-time', 'Contract'], { min: 2, max: 5 }),
-          companyType: faker.helpers.arrayElement(['Public', 'Private', 'Startup']),
-          jobLevel: faker.helpers.arrayElement(['Senior Level', 'Lead', 'Manager']),
-          
-          // Add all metrics
-          viewCount: metrics.viewCount,
-          uniqueLocations: metrics.uniqueLocations,
-          cloudAccessCount: metrics.cloudAccessCount,
-          deviceAccessCount: metrics.deviceAccessCount,
-          avgViewDuration: metrics.avgViewDuration,
-          recentViewCount: metrics.recentViewCount,
-          lastViewDate: metrics.lastViewDate,
-          uniqueLocationsLast7Days: metrics.uniqueLocationsLast7Days,
-          lastDeviceType: metrics.lastDeviceType,
-          distinctDeviceCount: metrics.distinctDeviceCount,
-          lastAccessedAt: metrics.lastViewDate,
-          
-          createdAt,
-          
-          // Create related events
-          events: {
-            createMany: {
-              data: events.map(event => ({
-                type: event.type,
-                metadata: event.metadata,
-                createdAt: event.createdAt
-              }))
-            }
-          },
-          
-          // Create related tracking logs
-          trackingLogs: {
-            createMany: {
-              data: logs.map(log => ({
-                deviceType: log.deviceType,
-                isCloudService: log.isCloudService,
-                location: log.location,
-                ipAddress: log.ipAddress,
-                userAgent: log.userAgent,
-                referrer: log.referrer,
-                duration: log.duration,
-                deviceFingerprint: log.deviceFingerprint,
-                sessionId: log.sessionId,
-                geoLocation: log.geoLocation,
-                createdAt: log.createdAt
-              }))
-            }
-          }
-        }
-      });
+  // Create resumes
+  for (const company of companies) {
+    const resume = await prisma.resume.create({
+      data: {
+        jobTitle: faker.person.jobTitle(),
+        company,
+        jobListingUrl: faker.internet.url(),
+        viewCount: 0,
+        uniqueLocations: 0,
+        deviceAccessCount: 0,
+        cloudAccessCount: 0,
+        avgViewDuration: 0,
+        recentViewCount: 0,
+        uniqueLocationsLast7Days: 0,
+        distinctDeviceCount: 0,
+      },
+    });
 
-      // Create version history
-      await prisma.resumeVersion.create({
+    // Create tracking logs
+    const numLogs = faker.number.int({ min: 5, max: 15 });
+    for (let i = 0; i < numLogs; i++) {
+      const deviceType = faker.helpers.arrayElement(deviceTypes);
+      const browser = faker.helpers.arrayElement(browsers);
+      const os = faker.helpers.arrayElement(operatingSystems);
+      const source = faker.helpers.arrayElement(sources);
+
+      await prisma.trackingLog.create({
         data: {
           resumeId: resume.id,
-          version: 1,
-          content: faker.lorem.paragraphs(3),
-          metadata: { originalFormat: 'pdf', wordCount: faker.number.int({ min: 300, max: 800 }) },
-          createdAt
-        }
+          location: faker.location.city() + ', ' + faker.location.state(),
+          deviceType,
+          ipAddress: faker.internet.ip(),
+          userAgent: `${browser}/115.0.0.0 (${os} 10.15.7)`,
+          source,
+          createdAt: faker.date.recent({ days: 7 }),
+        },
       });
 
-      // Add application tracking for "Under Consideration" scenario
-      if (scenario.name === 'Under Consideration') {
-        await prisma.applicationTracking.create({
-          data: {
-            resumeId: resume.id,
-            status: 'interviewing',
-            notes: 'Currently in the interview process',
-            appliedAt: subDays(new Date(), 14)
-          }
-        });
-      }
+      // Create corresponding event
+      await prisma.event.create({
+        data: {
+          resumeId: resume.id,
+          type: 'view',
+          metadata: {
+            source,
+            deviceType,
+            location: faker.location.city() + ', ' + faker.location.state(),
+          },
+          createdAt: faker.date.recent({ days: 7 }),
+        },
+      });
     }
-  }
 
-  console.log('Seed data created successfully');
+    // Add some cloud service views
+    const numCloudViews = faker.number.int({ min: 2, max: 5 });
+    for (let i = 0; i < numCloudViews; i++) {
+      await prisma.trackingLog.create({
+        data: {
+          resumeId: resume.id,
+          location: 'Cloud Service',
+          deviceType: 'cloud',
+          source: 'ats',
+          createdAt: faker.date.recent({ days: 7 }),
+        },
+      });
+
+      await prisma.event.create({
+        data: {
+          resumeId: resume.id,
+          type: 'view',
+          metadata: {
+            source: 'ats',
+            deviceType: 'cloud',
+            location: 'Cloud Service',
+          },
+          createdAt: faker.date.recent({ days: 7 }),
+        },
+      });
+    }
+
+    // Add some additional metrics
+    const numLocations = faker.number.int({ min: 3, max: 8 });
+    for (let i = 0; i < numLocations; i++) {
+      await prisma.trackingLog.create({
+        data: {
+          resumeId: resume.id,
+          location: faker.location.city() + ', ' + faker.location.state(),
+          deviceType: faker.helpers.arrayElement(deviceTypes),
+          ipAddress: faker.internet.ip(),
+          userAgent: faker.internet.userAgent(),
+          source: faker.helpers.arrayElement(sources),
+          createdAt: faker.date.recent({ days: 30 }),
+          duration: faker.number.int({ min: 30, max: 300 }),
+        },
+      });
+    }
+
+    // Update resume metrics
+    const logs = await prisma.trackingLog.findMany({
+      where: { resumeId: resume.id }
+    });
+
+    const uniqueLocations = new Set(logs.map(log => log.location));
+    const recentLogs = logs.filter(log => 
+      differenceInDays(new Date(), log.createdAt) <= 7
+    );
+    const uniqueLocationsLast7Days = new Set(recentLogs.map(log => log.location));
+
+    await prisma.resume.update({
+      where: { id: resume.id },
+      data: {
+        viewCount: logs.length,
+        uniqueLocations: uniqueLocations.size,
+        deviceAccessCount: logs.filter(log => log.deviceType !== 'cloud').length,
+        cloudAccessCount: logs.filter(log => log.deviceType === 'cloud').length,
+        avgViewDuration: logs.reduce((sum, log) => sum + (log.duration || 0), 0) / logs.length,
+        recentViewCount: recentLogs.length,
+        uniqueLocationsLast7Days: uniqueLocationsLast7Days.size,
+      }
+    });
+  }
 }
 
 main()
   .catch((e) => {
-    console.error('Error seeding data:', e);
+    console.error(e);
     process.exit(1);
   })
   .finally(async () => {
     await prisma.$disconnect();
-  }); 
+  });

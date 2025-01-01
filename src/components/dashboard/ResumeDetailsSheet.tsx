@@ -1,225 +1,130 @@
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Monitor, Smartphone, Tablet, Cloud, MapPin, Clock, Eye, Link, Copy } from "lucide-react";
-import { formatDistanceToNow, format } from "date-fns";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { 
+  Copy, 
+  Building2, 
+  MapPin, 
+  Link2, 
+  ChartLine, 
+  Globe,
+  Monitor,
+  Smartphone,
+  Tablet,
+  Clock,
+  Eye
+} from "lucide-react";
+import { ResumeInsights } from "./ResumeInsights";
+import { EventList } from "./EventList";
+import { TrackingLogs } from "./TrackingLogs";
 import { Resume } from "@/types/resume";
+import { formatDistanceToNow } from "date-fns";
+import { ResumeAnalytics } from "./ResumeAnalytics";
 
 interface ResumeDetailsSheetProps {
   resume: Resume | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCopyUrl: (url: string) => void;
+  onCopyUrl: (url: string) => Promise<void>;
+  defaultTab?: 'details' | 'insights';
 }
 
-export function ResumeDetailsSheet({ resume, open, onOpenChange, onCopyUrl }: ResumeDetailsSheetProps) {
+export function ResumeDetailsSheet({ 
+  resume, 
+  open, 
+  onOpenChange,
+  onCopyUrl,
+  defaultTab = 'details'
+}: ResumeDetailsSheetProps) {
   if (!resume) return null;
 
-  const getDeviceIcon = (deviceType: string) => {
-    switch (deviceType) {
-      case 'desktop':
-        return <Monitor className="h-4 w-4 text-blue-500" />;
-      case 'mobile':
-        return <Smartphone className="h-4 w-4 text-green-500" />;
-      case 'tablet':
-        return <Tablet className="h-4 w-4 text-orange-500" />;
-      default:
-        return <Cloud className="h-4 w-4 text-purple-500" />;
-    }
-  };
+  const recentLogs = resume.trackingLogs
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 10);
+
+  const recentEvents = resume.events
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 10);
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent 
-        side="right" 
-        className="w-[90vw] max-w-[1200px] overflow-y-auto sm:max-w-[1000px]"
-      >
+      <SheetContent className="w-[90vw] max-w-[1200px] sm:max-w-[800px]">
         <SheetHeader className="space-y-4">
-          <SheetTitle className="flex items-center justify-between">
-            <span>{resume.jobTitle}</span>
-            <Badge variant="outline" className="capitalize">
-              {resume.calculatedState?.replace('_', ' ')}
-            </Badge>
-          </SheetTitle>
           <div className="flex items-center justify-between">
-            <div className="space-y-1">
-              <div className="font-medium">{resume.company.name}</div>
-              <SheetDescription className="text-sm text-muted-foreground">
-                {resume.company.location}
-              </SheetDescription>
-            </div>
-            <Button 
-              variant="outline" 
+            <SheetTitle>{resume.job_title}</SheetTitle>
+            <Button
+              variant="outline"
               size="sm"
               className="gap-2"
-              onClick={() => onCopyUrl(resume.trackingUrl)}
+              onClick={() => onCopyUrl(resume.job_listing_url || '')}
             >
-              <Link className="h-4 w-4" />
-              <Copy className="h-3 w-3" />
+              <Copy className="h-4 w-4" />
+              Copy URL
             </Button>
+          </div>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <Building2 className="h-4 w-4" />
+              <span>{resume.company.name}</span>
+              <span>•</span>
+              <span className="text-muted-foreground">{resume.company.industry}</span>
+            </div>
+            <div className="flex items-center gap-2 text-muted-foreground">
+              <MapPin className="h-4 w-4" />
+              <span>{resume.company.location}</span>
+            </div>
+            {resume.job_listing_url && (
+              <div className="flex items-center gap-2 text-muted-foreground">
+                <Link2 className="h-4 w-4" />
+                <a 
+                  href={resume.job_listing_url} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="hover:underline"
+                >
+                  View Job Listing
+                </a>
+              </div>
+            )}
           </div>
         </SheetHeader>
 
-        <Tabs defaultValue="overview" className="mt-6">
+        <Tabs defaultValue={defaultTab} className="mt-6">
           <TabsList>
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="events">Events</TabsTrigger>
-            <TabsTrigger value="locations">Locations</TabsTrigger>
-            <TabsTrigger value="devices">Devices</TabsTrigger>
+            <TabsTrigger value="details">Details</TabsTrigger>
+            <TabsTrigger value="insights" className="gap-2">
+              <ChartLine className="h-4 w-4" />
+              Insights
+            </TabsTrigger>
           </TabsList>
-
-          <TabsContent value="overview" className="space-y-4 mt-4">
-            <div className="grid gap-4 md:grid-cols-2">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <Eye className="h-4 w-4" />
-                    View Statistics
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm">Total Views</span>
-                    <span className="font-medium">{resume.viewCount}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">Recent Views (7d)</span>
-                    <span className="font-medium">{resume.recentViewCount}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">Avg. View Duration</span>
-                    <span className="font-medium">{resume.avgViewDuration}s</span>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm font-medium flex items-center gap-2">
-                    <MapPin className="h-4 w-4" />
-                    Location Insights
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-sm">Unique Locations</span>
-                    <span className="font-medium">{resume.uniqueLocations}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">Recent Locations (7d)</span>
-                    <span className="font-medium">{resume.uniqueLocationsLast7Days}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-sm">Cloud Access</span>
-                    <span className="font-medium">{resume.cloudAccessCount}</span>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <Clock className="h-4 w-4" />
-                  Recent Activity
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {resume.events.slice(0, 5).map((event) => (
-                    <div key={event.id} className="flex items-center justify-between">
-                      <div className="space-y-1">
-                        <div className="text-sm font-medium capitalize">{event.type}</div>
-                        <div className="text-xs text-muted-foreground">via {event.metadata.source}</div>
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {formatDistanceToNow(new Date(event.createdAt), { addSuffix: true })}
-                      </div>
-                    </div>
-                  ))}
+          
+          <ScrollArea className="h-[calc(100vh-250px)] mt-4">
+            <TabsContent value="details" className="m-0">
+              <div className="space-y-6">
+                <div>
+                  <h4 className="text-sm font-medium mb-4">Recent Activity</h4>
+                  <TrackingLogs logs={recentLogs} />
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="events" className="mt-4">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="space-y-4">
-                  {resume.events.map((event) => (
-                    <div key={event.id} className="flex items-center justify-between border-b pb-4 last:border-0">
-                      <div className="space-y-1">
-                        <div className="text-sm font-medium capitalize">{event.type}</div>
-                        <div className="text-xs text-muted-foreground">
-                          via {event.metadata.source} • {event.metadata.deviceType}
-                        </div>
-                      </div>
-                      <div className="text-sm">
-                        {format(new Date(event.createdAt), 'PPpp')}
-                      </div>
-                    </div>
-                  ))}
+                
+                <div>
+                  <h4 className="text-sm font-medium mb-4">Events</h4>
+                  <EventList events={recentEvents} />
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="locations" className="mt-4">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="space-y-4">
-                  {resume.trackingLogs.map((log) => (
-                    <div key={log.id} className="flex items-center justify-between border-b pb-4 last:border-0">
-                      <div className="space-y-1">
-                        <div className="text-sm font-medium">{log.location}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {log.ipAddress} • {log.isCloudService ? 'Cloud Service' : 'Direct Access'}
-                        </div>
-                      </div>
-                      <div className="text-sm">
-                        {format(new Date(log.createdAt), 'PPpp')}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="devices" className="mt-4">
-            <Card>
-              <CardContent className="pt-6">
-                <div className="space-y-4">
-                  {resume.trackingLogs.map((log) => (
-                    <div key={log.id} className="flex items-center justify-between border-b pb-4 last:border-0">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          {getDeviceIcon(log.deviceType)}
-                          <span className="text-sm font-medium capitalize">{log.deviceType}</span>
-                        </div>
-                        <div className="text-xs text-muted-foreground truncate max-w-[400px]">
-                          {log.userAgent}
-                        </div>
-                      </div>
-                      <div className="text-sm">
-                        {format(new Date(log.createdAt), 'PPpp')}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="insights" className="m-0">
+              <ResumeAnalytics resumeId={resume.id} />
+            </TabsContent>
+          </ScrollArea>
         </Tabs>
       </SheetContent>
     </Sheet>
   );
-} 
+}

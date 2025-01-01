@@ -1,83 +1,51 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Users, Eye, MapPin, Clock } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { Card, CardContent } from "@/components/ui/card";
 
 interface StatsOverviewProps {
   totalResumes: number;
   totalViews: number;
   uniqueLocations: number;
-  latestActivity: Date | null;
+  latestActivity: any;
   loading?: boolean;
 }
 
-export function StatsOverview({ 
-  totalResumes, 
-  totalViews, 
-  uniqueLocations, 
-  latestActivity,
-  loading 
-}: StatsOverviewProps) {
+export function StatsOverview({ totalResumes, totalViews, uniqueLocations, latestActivity, loading }: StatsOverviewProps) {
+  const stats = [
+    {
+      title: "Total Resumes",
+      value: totalResumes,
+      icon: Users,
+    },
+    {
+      title: "Total Views", 
+      value: totalViews,
+      icon: Eye,
+    },
+    {
+      title: "Unique Locations",
+      value: uniqueLocations,
+      icon: MapPin,
+    },
+    {
+      title: "Latest Activity",
+      value: latestActivity ? "Active" : "No activity",
+      icon: Clock,
+    },
+  ];
+
   return (
     <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Resumes</CardTitle>
-          <Users className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <Skeleton className="h-8 w-20" />
-          ) : (
-            <div className="text-2xl font-bold">{totalResumes}</div>
-          )}
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Views</CardTitle>
-          <Eye className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <Skeleton className="h-8 w-20" />
-          ) : (
-            <div className="text-2xl font-bold">{totalViews}</div>
-          )}
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Unique Locations</CardTitle>
-          <MapPin className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <Skeleton className="h-8 w-20" />
-          ) : (
-            <div className="text-2xl font-bold">{uniqueLocations}</div>
-          )}
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Latest Activity</CardTitle>
-          <Clock className="h-4 w-4 text-muted-foreground" />
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <Skeleton className="h-8 w-32" />
-          ) : (
-            <div className="text-2xl font-bold">
-              {latestActivity ? (
-                formatDistanceToNow(new Date(latestActivity), { addSuffix: true })
-              ) : (
-                'No activity'
-              )}
+      {stats.map((stat) => (
+        <Card key={stat.title}>
+          <CardContent className="p-6">
+            <div className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <div className="tracking-tight text-sm font-medium">{stat.title}</div>
+              <stat.icon className="h-4 w-4 text-muted-foreground" />
             </div>
-          )}
-        </CardContent>
-      </Card>
+            <div className="text-2xl font-bold">{stat.value}</div>
+          </CardContent>
+        </Card>
+      ))}
     </div>
   );
 }

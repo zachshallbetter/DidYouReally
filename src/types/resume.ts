@@ -1,66 +1,74 @@
-import { DeviceType, ResumeState } from '@prisma/client';
-
 export interface Resume {
   id: string;
-  jobTitle: string;
+  job_title: string;
   company: {
     name: string;
-    industry?: string;
-    location?: string;
+    industry: string;
+    location: string;
   };
-  trackingUrl: string;
-  trackingId: string;
-  jobListingUrl?: string;
-  status: 'active' | 'archived' | 'deleted';
-  calculatedState?: ResumeState;
-  stateUpdatedAt?: Date;
-  version: number;
-  archivedAt?: Date;
-  originalContent?: string;
-  currentContent?: string;
-  metadata: any;
-  layoutPreferences: any;
-  tags: string[];
-  companyType?: string;
-  jobLevel?: string;
-  applicationStatus?: 'draft' | 'sent' | 'interviewing' | 'rejected' | 'accepted';
-  lastAccessedAt?: Date;
-  lastModifiedBy?: string;
-  
-  // Metrics
+  job_listing_url?: string;
+  createdAt: Date;
+  updatedAt: Date;
+  views: number;
   viewCount: number;
   uniqueLocations: number;
-  cloudAccessCount: number;
   deviceAccessCount: number;
+  cloudAccessCount: number;
   avgViewDuration: number;
   recentViewCount: number;
-  lastViewDate?: Date;
+  lastViewDate: string | Date | null;
   uniqueLocationsLast7Days: number;
-  lastDeviceType?: DeviceType;
   distinctDeviceCount: number;
-
-  // Related data
+  state: 'not_opened' | 'recently_viewed' | 'frequently_accessed' | 'multi_device_viewed' | 'under_consideration' | 'expired';
+  trackingLogs: Array<{
+    id: string;
+    location: string;
+    deviceType: string;
+    ipAddress?: string;
+    userAgent?: string;
+    createdAt: string | Date;
+  }>;
   events: Array<{
     id: string;
     type: string;
-    createdAt: Date;
-    metadata: any;
+    metadata: {
+      source: string;
+      deviceType?: string;
+      location?: string;
+    };
+    createdAt: string | Date;
   }>;
-  trackingLogs: Array<{
-    id: string;
-    deviceType: DeviceType;
-    isCloudService: boolean;
-    location: string;
-    ipAddress?: string;
-    userAgent?: string;
-    referrer?: string;
-    duration?: number;
-    deviceFingerprint?: string;
-    sessionId?: string;
-    geoLocation?: any;
-    createdAt: Date;
-  }>;
-  
+}
+
+export interface TableResume {
+  id: string;
+  job_title: string;
+  company: string;
+  job_listing_url?: string;
   createdAt: Date;
   updatedAt: Date;
-} 
+  views: number;
+}
+
+export function transformTableResumeToResume(tableResume: TableResume): Resume {
+  return {
+    ...tableResume,
+    company: {
+      name: tableResume.company,
+      industry: 'Technology',
+      location: 'Unknown'
+    },
+    viewCount: tableResume.views,
+    uniqueLocations: 0,
+    deviceAccessCount: 0,
+    cloudAccessCount: 0,
+    avgViewDuration: 0,
+    recentViewCount: 0,
+    lastViewDate: tableResume.updatedAt,
+    uniqueLocationsLast7Days: 0,
+    distinctDeviceCount: 0,
+    state: 'not_opened',
+    trackingLogs: [],
+    events: []
+  };
+}

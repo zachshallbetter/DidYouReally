@@ -512,3 +512,4 @@ def automate_tracking(resume_id, original_pdf, output_pdf, links):
     embed_pixel(original_pdf, output_pdf, pixel_url)
     replace_links_with_tracking(original_pdf, output_pdf, tracking_links)
 ```
+
