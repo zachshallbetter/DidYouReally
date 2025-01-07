@@ -2,7 +2,31 @@ import { PrismaClient } from '@prisma/client';
 import { faker } from '@faker-js/faker';
 import { subDays, addHours, subMonths, addMinutes, startOfDay, endOfDay, differenceInDays, addDays } from 'date-fns';
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({
+  log: [
+    {
+      emit: 'event',
+      level: 'query',
+    },
+    {
+      emit: 'stdout',
+      level: 'error',
+    },
+    {
+      emit: 'stdout', 
+      level: 'info',
+    },
+    {
+      emit: 'stdout',
+      level: 'warn',
+    },
+  ],
+});
+
+prisma.$on('query', (e) => {
+  console.log('Query: ' + e.query);
+  console.log('Duration: ' + e.duration + 'ms');
+});
 
 async function main() {
   // Clear existing data
@@ -134,21 +158,20 @@ async function main() {
     const logs = await prisma.trackingLog.findMany({
       where: { resumeId: resume.id }
     });
-
-    const uniqueLocations = new Set(logs.map(log => log.location));
-    const recentLogs = logs.filter(log => 
+    const uniqueLocations = new Set(logs.map((log) => log.location));
+    const recentLogs = logs.filter((log) => 
       differenceInDays(new Date(), log.createdAt) <= 7
     );
-    const uniqueLocationsLast7Days = new Set(recentLogs.map(log => log.location));
+    const uniqueLocationsLast7Days = new Set(recentLogs.map((log) => log.location));
 
     await prisma.resume.update({
       where: { id: resume.id },
       data: {
         viewCount: logs.length,
         uniqueLocations: uniqueLocations.size,
-        deviceAccessCount: logs.filter(log => log.deviceType !== 'cloud').length,
-        cloudAccessCount: logs.filter(log => log.deviceType === 'cloud').length,
-        avgViewDuration: logs.reduce((sum, log) => sum + (log.duration || 0), 0) / logs.length,
+        deviceAccessCount: logs.filter((log) => log.deviceType !== 'cloud').length,
+        cloudAccessCount: logs.filter((log) => log.deviceType === 'cloud').length,
+        avgViewDuration: logs.reduce((sum: number, log) => sum + (log.duration || 0), 0) / logs.length,
         recentViewCount: recentLogs.length,
         uniqueLocationsLast7Days: uniqueLocationsLast7Days.size,
       }
